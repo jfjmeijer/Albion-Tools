@@ -91,6 +91,30 @@ header{display:flex;flex-wrap:wrap;align-items:flex-end;justify-content:space-be
 @media (max-width:960px){.banner{margin:0 12px}}
 .logbtn{background:none;border:1px solid var(--line);color:var(--muted);border-radius:6px;padding:2px 8px;font:inherit;font-size:12px;cursor:pointer;margin-left:4px}
 .logbtn:hover{color:var(--text);border-color:var(--muted)}
+/* ---- mandje ---- */
+.cartbtn{background:none;border:1px solid var(--accent);color:var(--accent);border-radius:6px;padding:2px 8px;font:inherit;font-size:12px;cursor:pointer;margin-left:4px}
+.cartbtn.on{background:var(--accent);color:var(--accent-ink);font-weight:700}
+.cartbar{grid-column:1/-1;position:sticky;bottom:10px;z-index:4;display:flex;gap:12px;align-items:center;justify-content:space-between;flex-wrap:wrap;
+  background:#1f2633;border:1px solid var(--accent);border-radius:12px;padding:10px 14px;box-shadow:0 6px 24px rgba(0,0,0,.45)}
+.cartbar .btn.primary{flex:0 0 auto}
+#viewCart{display:block;max-width:1100px}
+#viewCart.hidden{display:none!important}
+.cart{display:flex;flex-direction:column;gap:14px}
+.cart-head h2{margin:0;font-size:18px}
+.cart-table{min-width:760px}
+.cart-table input.qty{width:76px;text-align:right;padding:5px 7px}
+.vwarn{display:block;font-size:11px;color:var(--warn)}
+.cart-btns{justify-content:flex-end}
+.cart-btns .btn.primary{flex:0 0 auto}
+.cart-sec h3{margin-bottom:4px}
+.cart-city{margin:12px 0 4px;font-size:12px;font-weight:700;letter-spacing:.6px;text-transform:uppercase;color:var(--accent)}
+.chk{display:flex;gap:10px;align-items:flex-start;padding:8px 6px;border-top:1px solid var(--line);cursor:pointer}
+.chk input{margin-top:3px;width:16px;height:16px;accent-color:var(--good)}
+.chk-text{flex:1;min-width:0}
+.chk-main{display:block}
+.chk-sub{display:block;font-size:12px;color:var(--muted)}
+.chk.done .chk-main{text-decoration:line-through;color:var(--muted)}
+.cart-progress .prog{height:10px}
 /* ---- logboek ---- */
 .lg-content{display:flex;flex-direction:column;gap:16px;min-width:0}
 .tiles{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:12px}
@@ -134,6 +158,7 @@ td.pos{color:var(--good);font-weight:600} td.neg{color:var(--bad);font-weight:60
   </div>
   <nav class="tabs" role="tablist" aria-label="Tools">
     <button type="button" role="tab" id="tabMarkt" data-view="markt" aria-selected="true">Markt</button>
+    <button type="button" role="tab" id="tabMandje" data-view="mandje" aria-selected="false">Mandje<span id="cartCount"></span></button>
     <button type="button" role="tab" id="tabLogboek" data-view="logboek" aria-selected="false">Logboek</button>
   </nav>
 </header>
@@ -283,7 +308,13 @@ td.pos{color:var(--good);font-weight:600} td.neg{color:var(--bad);font-weight:60
   </div>
   <div class="note">Prijzen komen van spelers die de Albion Data Client draaien en kunnen verouderd zijn. “Verk./dag” is het gemiddeld aantal verkochte stuks per dag (7 dagen, uit de history van de Data Project; dagen zonder data tellen als 0, dus het getal is eerder te laag dan te hoog). Hoeveel stuks er <i>nu</i> te koop staan of gevraagd worden zie je hier niet, en voor de Black Market is er mogelijk geen history. Controleer altijd in-game voordat je koopt of craft.</div>
 </section>
+<div class="cartbar hidden" id="cartBar" role="region" aria-label="Mandje">
+  <span id="cartBarText"></span>
+  <button type="button" class="btn primary" id="cartBarBtn">Naar mandje →</button>
+</div>
 </main>
+
+<main id="viewCart" class="hidden"><section class="cart" id="cartRoot" aria-label="Mandje"></section></main>
 
 <main id="viewLog" class="hidden">
 <aside class="panel" aria-label="Logboek invoer">
@@ -1154,6 +1185,11 @@ function render(){
     const cb = document.createElement("button"); cb.type = "button"; cb.className = "copy"; cb.textContent = "Kopieer naam";
     cb.addEventListener("click", () => copyText(r.name, cb));
     td7.appendChild(cb);
+    const kb = document.createElement("button"); kb.type = "button"; kb.className = "cartbtn";
+    setCartBtn(kb, inCart(r));
+    kb.title = "Zet deze kans in je mandje";
+    kb.addEventListener("click", () => cartToggle(r, kb));
+    td7.insertBefore(kb, td7.firstChild);
     const lb = document.createElement("button"); lb.type = "button"; lb.className = "logbtn"; lb.textContent = "Log";
     lb.title = "Zet deze kans klaar in het logboek";
     lb.addEventListener("click", () => logFromRow(r));
@@ -1304,7 +1340,7 @@ function init(){
    Site: tabs, hosting en downloadversie
    ================================================================= */
 const IN_CLAUDE = !!(window.claude && typeof window.claude.use === "function");
-const VIEWS = {markt:"viewMarkt", logboek:"viewLog"};
+const VIEWS = {markt:"viewMarkt", mandje:"viewCart", logboek:"viewLog"};
 let currentView = "markt";
 
 function showView(v){
@@ -1314,6 +1350,7 @@ function showView(v){
   for(const b of document.querySelectorAll(".tabs button")) b.setAttribute("aria-selected", b.dataset.view === v ? "true" : "false");
   $("hostBanner").classList.toggle("hidden", !(IN_CLAUDE && v === "markt"));
   if(v === "logboek") renderLog();
+  if(v === "mandje") renderCart();
 }
 function viewFromHash(){ const h = (location.hash || "").replace(/^#/, ""); return VIEWS[h] ? h : "markt"; }
 
@@ -1865,7 +1902,303 @@ function initSite(){
   window.addEventListener("hashchange", () => showView(viewFromHash()));
   $("dlSelfBtn").addEventListener("click", downloadSelf);
   initLog();
+  initCart();
   showView(viewFromHash());
+}
+
+
+/* =================================================================
+   Mandje en afvinklijst
+   ================================================================= */
+const CART_KEY = "albionMandje.v1";
+const CART = {items:[], stage:"select", checks:{}};
+const MODE_LABEL = {bm:"Flip → BM", city:"Stad → stad", routes:"Route", craft:"Craften"};
+const MODE_LOGCAT = {bm:"Flip → Black Market", city:"Flip stad → stad", routes:"Handelsroute"};
+
+function cartSave(){ try{ localStorage.setItem(CART_KEY, JSON.stringify(CART)); }catch(e){} }
+function cartLoad(){
+  try{
+    const j = JSON.parse(localStorage.getItem(CART_KEY) || "null");
+    if(!j) return;
+    if(Array.isArray(j.items)) CART.items = j.items.filter(x => x && x.key && x.id);
+    CART.stage = j.stage === "list" && CART.items.length ? "list" : "select";
+    CART.checks = j.checks && typeof j.checks === "object" ? j.checks : {};
+  }catch(e){}
+}
+function cartKey(r){ return [S.mode, r.id, r.quality, r.from, r.to].join("|"); }
+function inCart(r){ const k = cartKey(r); return CART.items.some(x => x.key === k); }
+function weightOf(id){ const p = parseId(id); return p && p.it.wt ? p.it.wt[p.tier - 2] || 0 : 0; }
+function cartSnapshot(r){
+  const craft = !!r.craft;
+  const buyFee = !craft && S.buyMethod === "order" ? SETUP : 0;
+  const costUnit = craft ? r.buy : r.buy * (1 + buyFee);
+  const instantSell = r.to === BM || S.mode === "bm" || S.sellMethod === "instant";
+  return {
+    key:cartKey(r), mode:S.mode, id:r.id, name:r.name, tier:r.tier, ench:r.ench, quality:r.quality, cat:r.cat || "",
+    from:r.from, to:r.to, buy:r.buy, sell:r.sell, costUnit, profit:r.profit, kg:r.kg || 0,
+    vol:r.vEff == null ? null : r.vEff, qty:1, buyOrder:!craft && S.buyMethod === "order", sellOrder:!instantSell,
+    craft:craft ? {rrr:r.craft.rrr, fee:r.craft.fee, matOrder:S.buyMethod === "order",
+      lines:r.craft.lines.map(l => ({id:l.id, name:l.name, n:l.n, ret:l.ret, raw:l.raw, city:l.city}))} : null,
+    t:Date.now()
+  };
+}
+function cartToggle(r, btn){
+  const k = cartKey(r), i = CART.items.findIndex(x => x.key === k);
+  if(i >= 0) CART.items.splice(i, 1);
+  else{ CART.items.push(cartSnapshot(r)); if(CART.stage === "list") CART.stage = "select"; }
+  cartSave(); updateCartUi();
+  if(btn) setCartBtn(btn, i < 0);
+}
+function setCartBtn(btn, on){
+  btn.textContent = on ? "✓ In mandje" : "+ Mandje";
+  btn.classList.toggle("on", on);
+  btn.setAttribute("aria-pressed", on ? "true" : "false");
+}
+function itemLabel(x){ return "T" + x.tier + (x.ench ? "." + x.ench : "") + " " + x.name + (x.quality > 1 ? " (" + (QNAME[x.quality] || "Q" + x.quality) + ")" : ""); }
+function cartTotals(){
+  let cost = 0, profit = 0, kg = 0, n = 0;
+  for(const x of CART.items){ cost += x.costUnit * x.qty; profit += x.profit * x.qty; kg += x.kg * x.qty; n += x.qty; }
+  return {cost, profit, revenue:cost + profit, kg, n};
+}
+function updateCartUi(){
+  const n = CART.items.length;
+  $("cartCount").textContent = n ? " (" + n + ")" : "";
+  const bar = $("cartBar");
+  bar.classList.toggle("hidden", !n);
+  if(n){
+    const t = cartTotals();
+    $("cartBarText").textContent = n + " item" + (n === 1 ? "" : "s") + " in je mandje · investering " + fmtS(t.cost) + " · winst ±" + fmtS(t.profit) + (t.kg ? " · " + fmtKg(t.kg) : "");
+  }
+  if(currentView === "mandje") renderCart();
+}
+const fmtKg = kg => kg.toLocaleString("nl-NL", {maximumFractionDigits:kg < 10 ? 1 : 0}) + " kg";
+
+/* ---------- lijst opbouwen ---------- */
+function buildChecklist(){
+  const buys = new Map(), crafts = [], sells = new Map();
+  const addBuy = (city, k, line) => {
+    if(!buys.has(city)) buys.set(city, new Map());
+    const m = buys.get(city), cur = m.get(k);
+    if(cur){ cur.qty += line.qty; cur.qtyFull += line.qtyFull; } else m.set(k, line);
+  };
+  for(const x of CART.items){
+    if(x.craft){
+      for(const l of x.craft.lines){
+        const full = l.n * x.qty;
+        addBuy(l.city, "m|" + l.id, {key:"b|" + l.city + "|" + l.id, id:l.id, name:l.name, qty:l.ret ? full * (1 - x.craft.rrr) : full, qtyFull:full,
+          ret:l.ret, price:l.raw, order:x.craft.matOrder, kg:weightOf(l.id), mat:true});
+      }
+      crafts.push({key:"c|" + x.key, x});
+    }else{
+      addBuy(x.from, "i|" + x.id + "|" + x.quality, {key:"b|" + x.from + "|" + x.id + "|" + x.quality, id:x.id, name:itemLabel(x), qty:x.qty, qtyFull:x.qty,
+        ret:0, price:x.buy, order:x.buyOrder, kg:x.kg, mat:false, copy:x.name});
+    }
+    if(!sells.has(x.to)) sells.set(x.to, []);
+    sells.get(x.to).push({key:"s|" + x.to + "|" + x.key, x});
+  }
+  return {buys, crafts, sells};
+}
+
+/* ---------- tekenen ---------- */
+function el(tag, cls, text){ const e = document.createElement(tag); if(cls) e.className = cls; if(text != null) e.textContent = text; return e; }
+function copyBtn(name){
+  const b = el("button", "copy", "Kopieer naam"); b.type = "button";
+  b.addEventListener("click", () => copyText(name, b));
+  return b;
+}
+function totalsBox(t){
+  const box = el("div", "tiles");
+  tile(box, "Investering", fmtS(t.cost), fmt(t.cost) + " silver");
+  tile(box, "Verwachte opbrengst", fmtS(t.revenue), "na belasting en fees");
+  tile(box, "Verwachte winst", (t.profit >= 0 ? "+" : "") + fmtS(t.profit), t.cost ? Math.round(t.profit / t.cost * 100) + "% ROI" : "");
+  tile(box, "Te vervoeren", t.kg ? fmtKg(t.kg) : "–", t.n + " stuks om te verkopen");
+  return box;
+}
+function renderCart(){
+  const root = $("cartRoot"); root.textContent = "";
+  const head = el("div", "cart-head");
+  const h = el("h2", null, CART.stage === "list" ? "Afvinklijst" : "Mandje");
+  head.appendChild(h);
+  root.appendChild(head);
+  if(!CART.items.length){
+    root.appendChild(el("div", "empty", "Je mandje is leeg. Scan in Markt en klik bij de kansen die je wilt doen op “+ Mandje”."));
+    return;
+  }
+  const t = cartTotals();
+  if(CART.stage === "select") renderSelect(root, t); else renderList(root, t);
+}
+function renderSelect(root, t){
+  root.appendChild(el("p", "est", "Kies per item hoeveel stuks je wilt doen. Prijzen zijn die van je scan; controleer ze in-game. Klik daarna op Doorgaan voor je afvinklijst."));
+  const wrap = el("div", "results");
+  const tw = el("div", "tablewrap");
+  const tbl = el("table", "cart-table");
+  const thead = el("thead"), hr = el("tr");
+  for(const [l, num] of [["Item"], ["Soort"], ["Route"], ["Kosten/stuk", 1], ["Winst/stuk", 1], ["Aantal", 1], ["Winst", 1], [""]]){
+    const th = el("th", num ? "num" : null, l); th.style.cursor = "default"; hr.appendChild(th);
+  }
+  thead.appendChild(hr); tbl.appendChild(thead);
+  const tb = el("tbody");
+  for(const x of CART.items){
+    const tr = el("tr");
+    const td1 = el("td"); const tag = el("span", "tier", "T" + x.tier + (x.ench ? "." + x.ench : "")); td1.append(tag, document.createTextNode(x.name));
+    if(x.quality > 1) td1.appendChild(el("span", "q", QNAME[x.quality] || "Q" + x.quality));
+    const td2 = el("td", null, MODE_LABEL[x.mode] || x.mode);
+    const td3 = el("td", null, x.craft ? "craft → " + x.to : x.from + " → " + x.to);
+    const td4 = el("td", "num", fmt(x.costUnit));
+    const td5 = el("td", "num profit", "+" + fmt(x.profit));
+    const td6 = el("td", "num");
+    const q = el("input"); q.type = "number"; q.min = "1"; q.step = "1"; q.value = x.qty; q.className = "qty"; q.setAttribute("aria-label", "Aantal " + x.name);
+    td6.appendChild(q);
+    const warn = el("span", "vwarn");
+    td6.appendChild(warn);
+    const td7 = el("td", "num profit");
+    const upd = () => {
+      td7.textContent = "+" + fmt(x.profit * x.qty);
+      warn.textContent = x.vol != null && x.qty > x.vol ? "meer dan " + fmtVol(x.vol) + "/dag verkocht" : "";
+    };
+    upd();
+    q.addEventListener("input", () => {
+      const v = Math.max(1, Math.min(9999, Math.round(Number(q.value) || 1)));
+      x.qty = v; cartSave(); upd(); updateTotalsOnly();
+    });
+    const td8 = el("td");
+    const rm = el("button", "del", "Verwijder"); rm.type = "button";
+    rm.addEventListener("click", () => { CART.items = CART.items.filter(y => y.key !== x.key); cartSave(); updateCartUi(); renderCart(); });
+    td8.appendChild(rm);
+    tr.append(td1, td2, td3, td4, td5, td6, td7, td8);
+    tb.appendChild(tr);
+  }
+  tbl.appendChild(tb); tw.appendChild(tbl); wrap.appendChild(tw); root.appendChild(wrap);
+  const tot = el("div"); tot.id = "cartTotals"; tot.appendChild(totalsBox(t)); root.appendChild(tot);
+  const btns = el("div", "btns cart-btns");
+  const clear = el("button", "btn", "Mandje leegmaken"); clear.type = "button";
+  let armed = false;
+  clear.addEventListener("click", () => {
+    if(!armed){ armed = true; clear.textContent = "Zeker? Klik nog eens"; setTimeout(() => { armed = false; clear.textContent = "Mandje leegmaken"; }, 3000); return; }
+    CART.items = []; CART.checks = {}; CART.stage = "select"; cartSave(); updateCartUi(); renderCart();
+  });
+  const go = el("button", "btn primary", "Doorgaan → afvinklijst"); go.type = "button"; go.id = "cartGo";
+  go.addEventListener("click", () => { CART.stage = "list"; cartSave(); renderCart(); window.scrollTo(0, 0); });
+  btns.append(clear, go);
+  root.appendChild(btns);
+}
+function updateTotalsOnly(){
+  const box = $("cartTotals"); if(!box) return;
+  box.textContent = ""; box.appendChild(totalsBox(cartTotals()));
+  const n = CART.items.length, tt = cartTotals();
+  $("cartBarText").textContent = n + " item" + (n === 1 ? "" : "s") + " in je mandje · investering " + fmtS(tt.cost) + " · winst ±" + fmtS(tt.profit) + (tt.kg ? " · " + fmtKg(tt.kg) : "");
+}
+function checkLine(parent, key, main, sub, extra){
+  const row = el("label", "chk" + (CART.checks[key] ? " done" : ""));
+  const cb = el("input"); cb.type = "checkbox"; cb.checked = !!CART.checks[key]; cb.dataset.key = key;
+  const txt = el("span", "chk-text");
+  txt.appendChild(el("span", "chk-main", main));
+  if(sub) txt.appendChild(el("span", "chk-sub", sub));
+  row.append(cb, txt);
+  if(extra) row.appendChild(extra);
+  cb.addEventListener("change", () => {
+    if(cb.checked) CART.checks[key] = 1; else delete CART.checks[key];
+    row.classList.toggle("done", cb.checked);
+    cartSave(); updateProgress();
+  });
+  parent.appendChild(row);
+  return row;
+}
+function updateProgress(){
+  const all = [...document.querySelectorAll("#cartRoot .chk input")];
+  const done = all.filter(c => c.checked).length;
+  const p = $("cartProg"); if(!p) return;
+  p.querySelector("i").style.width = (all.length ? done / all.length * 100 : 0) + "%";
+  $("cartProgText").textContent = done + " van " + all.length + " gedaan" + (done === all.length && all.length ? " · klaar! Rond de batch af om hem te loggen." : "");
+}
+function renderList(root, t){
+  const {buys, crafts, sells} = buildChecklist();
+  const pr = el("div", "cart-progress");
+  const bar = el("div", "prog"); bar.id = "cartProg"; bar.appendChild(el("i"));
+  pr.append(el("span", "est", ""), bar);
+  pr.firstChild.id = "cartProgText";
+  root.appendChild(pr);
+  root.appendChild(totalsBox(t));
+
+  let step = 1;
+  const sec = (title, note) => {
+    const c = el("div", "card cart-sec");
+    c.appendChild(el("h3", null, (step++) + ". " + title));
+    if(note) c.appendChild(el("p", "sub2", note));
+    root.appendChild(c);
+    return c;
+  };
+  // kopen
+  const sb = sec("Kopen", "Per stad. Bedragen zijn de prijzen uit je scan; koop niet duurder dan dat, anders krimpt je winst.");
+  for(const [city, m] of buys){
+    const buyQty = l => l.ret && l.qty < l.qtyFull ? Math.ceil(l.qty - 1e-9) : l.qtyFull;
+    let sum = 0, kg = 0;
+    for(const l of m.values()){ sum += l.price * buyQty(l); kg += l.kg * buyQty(l); }
+    sb.appendChild(el("div", "cart-city", city + " · ±" + fmtS(sum) + (kg ? " · " + fmtKg(kg) : "")));
+    for(const l of m.values()){
+      const qty = buyQty(l);
+      const main = qty + "× " + l.name;
+      const sub = (l.order ? "buy order tot " : "max ") + fmt(l.price) + " per stuk · ±" + fmt(l.price * qty) + " totaal" +
+        (l.ret && l.qty < l.qtyFull ? " · met RRR; zonder terugkomst " + l.qtyFull + " nodig (eerste craft heeft het volle aantal nodig)" : "") +
+        (l.mat && !l.ret ? " · wordt niet teruggegeven" : "");
+      checkLine(sb, l.key, main, sub, copyBtn(l.copy || l.name.replace(/ \.\d$/, "")));
+    }
+  }
+  // craften
+  if(crafts.length){
+    const sc = sec("Craften", "Craft in een stad met bonus voor dit item (en met focus als je die hebt) om de RRR uit je scan te halen.");
+    for(const c of crafts){
+      const x = c.x;
+      checkLine(sc, c.key, x.qty + "× " + itemLabel(x) + " craften",
+        "RRR " + (x.craft.rrr * 100).toFixed(1).replace(".", ",") + "%" + (x.craft.fee ? " · stationkosten ±" + fmt(x.craft.fee * x.qty) : "") + " · kosten ±" + fmt(x.costUnit * x.qty));
+    }
+  }
+  // verkopen
+  const ss = sec("Verkopen", "Per bestemming. Verkoop je bij de Black Market, ga dan naar Caerleon.");
+  for(const [dest, list] of sells){
+    let sum = 0, kg = 0;
+    for(const s of list){ sum += (s.x.costUnit + s.x.profit) * s.x.qty; kg += s.x.kg * s.x.qty; }
+    ss.appendChild(el("div", "cart-city", (dest === BM ? "Black Market (Caerleon)" : dest) + " · opbrengst ±" + fmtS(sum) + (kg ? " · " + fmtKg(kg) : "")));
+    for(const s of list){
+      const x = s.x;
+      const how = x.to === BM ? "direct aan de Black Market" : x.sellOrder ? "sell order plaatsen" : "direct aan buy orders";
+      checkLine(ss, s.key, x.qty + "× " + itemLabel(x), how + " voor minstens " + fmt(x.sell) + " per stuk · winst ±" + fmt(x.profit * x.qty), copyBtn(x.name));
+    }
+  }
+  const btns = el("div", "btns cart-btns");
+  const back = el("button", "btn", "← Terug naar mandje"); back.type = "button";
+  back.addEventListener("click", () => { CART.stage = "select"; cartSave(); renderCart(); });
+  const fin = el("button", "btn primary", "Batch afronden → logboek"); fin.type = "button"; fin.id = "cartFinish";
+  fin.addEventListener("click", finishBatch);
+  btns.append(back, fin);
+  root.appendChild(btns);
+  updateProgress();
+}
+function finishBatch(){
+  const t = cartTotals();
+  const modes = new Set(CART.items.map(x => x.mode));
+  let cat = "Overig";
+  if(modes.size === 1){
+    const m = [...modes][0];
+    cat = m === "craft" ? (CART.items.every(x => x.cat === "m") ? "Refinen" : "Craften") : MODE_LOGCAT[m] || "Overig";
+  }
+  const dests = [...new Set(CART.items.map(x => x.to === BM ? "BM" : x.to))].join(", ");
+  location.hash = "logboek";
+  showView("logboek");
+  setLogType("win");
+  $("lgCat").value = cat;
+  $("lgNote").value = ("Batch: " + t.n + " stuks, " + CART.items.length + " items → " + dests).slice(0, 120);
+  $("lgAmount").value = String(Math.round(t.profit));
+  $("lgQty").value = "1";
+  $("lgDate").value = localInputValue(Date.now());
+  updatePreview();
+  lgStatus("Ingevuld met de verwachte winst van je batch. Pas het bedrag aan naar wat je echt verdiende en klik Toevoegen. Je mandje blijft staan tot je het leegmaakt.");
+  $("lgAmount").focus();
+}
+function initCart(){
+  cartLoad();
+  $("cartBarBtn").addEventListener("click", () => { location.hash = "mandje"; showView("mandje"); });
+  updateCartUi();
 }
 
 init();

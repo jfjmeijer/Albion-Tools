@@ -257,6 +257,67 @@ with sync_playwright() as p:
     p2.wait_for_timeout(200)
     check(("del:logmonths/" + month) in p2.evaluate("window.__writes"), "lege maand wordt verwijderd")
     check(not err2, "geen JS-fouten in claude.ai-modus: %s" % err2)
+    # ---------- mandje en afvinklijst ----------
+    ctx3 = browser.new_context(locale="nl-NL", viewport={"width": 1400, "height": 950})
+    p3 = ctx3.new_page()
+    err3 = []
+    p3.on("pageerror", lambda e: err3.append(str(e)))
+    p3.route(re.compile(r"albion-online-data\.com/api/v2/stats/prices/"), prices)
+    p3.route(re.compile(r"albion-online-data\.com/api/v2/stats/history/"), history)
+    p3.goto("file://" + TEST_COPY)
+    p3.evaluate("(() => { const c = document.getElementById('premium'); if(!c.checked){ c.click(); } })()")
+    check(not p3.is_visible("#cartBar"), "mandjebalk verborgen zolang het mandje leeg is")
+    p3.click("#scanBtn"); p3.wait_for_function(DONE, timeout=90000)
+    row = p3.locator("#tbody tr", has_text="Broadsword").first
+    row.locator(".cartbtn").click()
+    check(row.locator(".cartbtn").inner_text() == "✓ In mandje", "knop wordt ‘In mandje’")
+    check(p3.is_visible("#cartBar") and "1 item" in p3.inner_text("#cartBar"), "mandjebalk toont 1 item")
+    check(p3.inner_text("#tabMandje") == "Mandje (1)", "tab toont aantal: " + p3.inner_text("#tabMandje"))
+    # craft-kans erbij
+    SPECIAL["T5_MAIN_SWORD@1"] = {"Black Market": dict(sell=0, buy=400000)}
+    SPECIAL["T5_METALBAR_LEVEL1@1"] = {"Lymhurst": dict(sell=20000, buy=0)}
+    SPECIAL["T5_LEATHER_LEVEL1@1"] = {"Martlock": dict(sell=10000, buy=0)}
+    p3.click("#modeCraft")
+    for t in ["T4", "T6"]:
+        p3.locator("#tiers button", has_text=t).first.click()
+    p3.click("#scanBtn"); p3.wait_for_function(DONE, timeout=90000)
+    crow = [r for r in rows(p3) if r[0].startswith("T5.1") and "Broadsword" in r[0]]
+    print("craft-rij:", crow)
+    check(crow and crow[0][4] == "+130.800", "craft T5.1 broadsword +130.800 (was %s)" % (crow[0][4] if crow else None))
+    p3.locator("#tbody tr", has_text="Expert's Broadsword").filter(has=p3.locator("span.tier", has_text="T5.1")).first.locator(".cartbtn").click()
+    p3.click("#cartBarBtn")
+    check(p3.is_visible("#viewCart") and p3.url.endswith("#mandje"), "naar mandje-tab")
+    crt = rows(p3, "#cartRoot tbody tr")
+    print("mandje:", crt)
+    check(len(crt) == 2, "2 items in het mandje")
+    p3.locator("#cartRoot tbody tr", has_text="Craften").locator("input.qty").fill("3")
+    tot = p3.inner_text("#cartTotals")
+    check("+417k" in tot, "verwachte winst 24.800 + 3 × 130.800 = 417.200: " + tot.replace("\n", " | "))
+    p3.click("#cartGo")
+    lst = p3.inner_text("#cartRoot")
+    print("lijst:", lst.replace("\n", " | ")[:900])
+    check("1× T5 Expert's Broadsword" in lst, "kopen: het flip-zwaard")
+    check("31× Titanium Steel Bar .1" in lst and "zonder terugkomst 48" in lst, "kopen: staven met RRR (31, zonder 48)")
+    check("16× Worked Leather .1" in lst or "16×" in lst, "kopen: leer met RRR")
+    check("3× T5.1 Expert's Broadsword craften" in lst, "craftstap")
+    check("BLACK MARKET (CAERLEON)" in lst.upper(), "verkopen gegroepeerd op Black Market")
+    n_chk = p3.locator("#cartRoot .chk input").count()
+    for i in range(n_chk):
+        p3.locator("#cartRoot .chk input").nth(i).check()
+    check(("%d van %d gedaan" % (n_chk, n_chk)) in p3.inner_text("#cartProgText"), "voortgang: alles afgevinkt")
+    p3.reload(); p3.wait_for_timeout(200)
+    check(p3.is_visible("#viewCart") and p3.locator("#cartRoot .chk input:checked").count() == n_chk, "lijst en vinkjes bewaard na herladen")
+    p3.locator("#cartRoot .chk input").first.uncheck()
+    p3.screenshot(path=SHOT_DIR + "/mandje-lijst.png", full_page=True)
+    p3.click("#cartFinish")
+    check(p3.is_visible("#viewLog") and p3.input_value("#lgAmount") == "417200" and "Batch: 4 stuks" in p3.input_value("#lgNote"), "batch afronden vult het logboek in")
+    p3.click("#tabMandje")
+    p3.click("text=← Terug naar mandje")
+    p3.screenshot(path=SHOT_DIR + "/mandje.png", full_page=True)
+    p3.locator("#cartRoot tbody tr").first.locator(".del").click()
+    check(len(rows(p3, "#cartRoot tbody tr")) == 1, "item uit mandje verwijderen")
+    check(not err3, "geen JS-fouten in mandje: %s" % err3)
+
     browser.close()
 
 print("\nFAILURES:", len(failures))
