@@ -1,6 +1,6 @@
 # Albion Tools – notities voor Claude
 
-Site van Joris (GitHub Pages vanaf `main`, map `/`): https://jfjmeijer.github.io/albion-tools/
+Site van Joris (GitHub Pages vanaf `main`, map `/`): https://jfjmeijer.github.io/Albion-Tools/
 UI-tekst is Nederlands. Joris wil korte, scanbare uitleg.
 
 ## Werkwijze
