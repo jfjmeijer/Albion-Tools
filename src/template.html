@@ -1,0 +1,1875 @@
+<!DOCTYPE html>
+<html lang="nl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Albion Tools</title>
+<style>
+:root{
+  color-scheme:dark;
+  --s1:#3987e5; --s2:#d95926;
+  --bg:#0e1117; --panel:#161b24; --panel2:#1c2330; --line:#283041; --text:#e7eaf0; --muted:#8c96a9;
+  --accent:#e2b24d; --accent-ink:#1a1405; --good:#4cc38a; --warn:#e3a43b; --bad:#e5594f;
+}
+*{box-sizing:border-box}
+html,body{margin:0}
+body{background:var(--bg);color:var(--text);font:14px/1.45 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;min-height:100vh}
+header{padding:18px 22px 6px}
+h1{margin:0;font-size:22px;letter-spacing:.2px}
+h1 span{color:var(--accent)}
+.sub{margin:2px 0 0;color:var(--muted);font-size:13px}
+main{display:grid;grid-template-columns:372px minmax(0,1fr);gap:16px;padding:14px 22px 30px;align-items:start}
+@media (max-width:960px){main{grid-template-columns:1fr;padding:12px}}
+.panel{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:14px 14px 4px}
+.group{margin-bottom:16px}
+.group h2{margin:0 0 8px;font-size:11.5px;font-weight:700;letter-spacing:1px;text-transform:uppercase;color:var(--muted)}
+label.field,div.field{display:block;margin:0 0 9px}
+label.field>span,div.field>span{display:block;font-size:12.5px;color:var(--muted);margin-bottom:4px}
+select,input[type=number],input[type=text],input[type=datetime-local],textarea{width:100%;background:var(--panel2);color:var(--text);border:1px solid var(--line);border-radius:8px;padding:7px 9px;font:inherit}
+select:disabled{opacity:.5}
+select:focus,input:focus,textarea:focus,button:focus-visible{outline:2px solid var(--accent);outline-offset:1px}
+.row2{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.check{display:flex;gap:8px;align-items:flex-start;margin:0 0 8px;cursor:pointer}
+.check input{margin-top:3px}
+.chips{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:9px}
+.chip{background:var(--panel2);color:var(--muted);border:1px solid var(--line);border-radius:999px;padding:4px 11px;font:inherit;font-size:12.5px;cursor:pointer}
+.chip[aria-pressed=true]{background:rgba(226,178,77,.14);border-color:var(--accent);color:var(--accent)}
+.chip:disabled{opacity:.35;cursor:not-allowed;border-style:dashed}
+.seg{display:grid;grid-template-columns:repeat(4,1fr);gap:0;margin-bottom:10px;border:1px solid var(--line);border-radius:9px;overflow:hidden}
+.seg button{background:var(--panel2);color:var(--muted);border:0;padding:8px 2px;font:inherit;font-size:12.5px;cursor:pointer}
+.seg button[aria-pressed=true]{background:var(--accent);color:var(--accent-ink);font-weight:700}
+.btns{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:10px}
+button.btn,label.btn{background:var(--panel2);color:var(--text);border:1px solid var(--line);border-radius:9px;padding:9px 14px;font:inherit;cursor:pointer}
+button.btn:hover,label.btn:hover{border-color:var(--muted)}
+button.btn.primary{background:var(--accent);color:var(--accent-ink);border-color:var(--accent);font-weight:700;flex:1}
+button.btn:disabled{opacity:.45;cursor:not-allowed}
+.est{font-size:12.5px;color:var(--muted);margin:-2px 0 4px}
+.status{font-size:13px;min-height:20px;margin:2px 0 6px;color:var(--muted)}
+.status.err{color:var(--bad)} .status.ok{color:var(--good)}
+.bar{height:6px;background:var(--panel2);border-radius:99px;overflow:hidden;margin-bottom:12px;display:none}
+.bar>i{display:block;height:100%;width:0;background:var(--accent);transition:width .25s}
+details{margin:0 0 12px;border-top:1px solid var(--line);padding-top:10px}
+summary{cursor:pointer;color:var(--muted);font-size:13px}
+textarea{min-height:90px;margin-top:8px;font:12px/1.4 ui-monospace,Menlo,Consolas,monospace}
+.results{background:var(--panel);border:1px solid var(--line);border-radius:12px;overflow:hidden}
+.sum{padding:12px 16px;border-bottom:1px solid var(--line);display:flex;gap:14px;flex-wrap:wrap;align-items:baseline}
+.sum b{font-size:15px}
+.sum small{color:var(--muted)}
+.tablewrap{overflow:auto;max-height:calc(100vh - 150px)}
+table{border-collapse:collapse;width:100%;min-width:1040px}
+th,td{padding:8px 12px;text-align:left;border-bottom:1px solid var(--line);white-space:nowrap}
+th{position:sticky;top:0;background:var(--panel2);font-size:12px;color:var(--muted);font-weight:600;cursor:pointer;user-select:none;z-index:1}
+th.num,td.num{text-align:right;font-variant-numeric:tabular-nums}
+th[aria-sort]::after{content:" ▲";font-size:9px;color:var(--accent)}
+th[aria-sort=descending]::after{content:" ▼"}
+tbody tr:hover{background:rgba(255,255,255,.03)}
+tr.detail td{white-space:normal;background:var(--panel2);padding:10px 16px 12px 56px}
+.recipe div{font-size:12.5px;color:var(--text);padding:1px 0}
+.recipe .foot{margin-top:6px;color:var(--muted)}
+.tier{display:inline-block;min-width:34px;text-align:center;margin-right:8px;padding:1px 6px;border-radius:5px;background:var(--panel2);border:1px solid var(--line);font-size:12px;color:var(--accent);font-weight:700}
+.q{margin-left:6px;font-size:11px;color:var(--warn)}
+.age{display:block;font-size:11px;color:var(--muted)}
+.age.fresh{color:var(--good)} .age.mid{color:var(--warn)} .age.old{color:var(--bad)}
+.profit{color:var(--good);font-weight:700}
+.vol{color:var(--text)} .vol.low{color:var(--bad)} .vol.mid{color:var(--warn)} .vol.na{color:var(--muted)}
+.vsep{color:var(--muted);margin:0 3px}
+.arrow{color:var(--muted);margin:0 4px}
+.copy{background:none;border:1px solid var(--line);color:var(--muted);border-radius:6px;padding:2px 8px;font:inherit;font-size:12px;cursor:pointer;margin-left:4px}
+.copy:hover{color:var(--text);border-color:var(--muted)}
+.empty{padding:34px 20px;color:var(--muted);text-align:center}
+.note{padding:10px 16px;color:var(--muted);font-size:12px;border-top:1px solid var(--line)}
+a{color:var(--accent)}
+.hidden{display:none!important}
+/* ---- site: tabs ---- */
+header{display:flex;flex-wrap:wrap;align-items:flex-end;justify-content:space-between;gap:10px 20px}
+.tabs{display:flex;gap:4px;background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:4px}
+.tabs button{background:none;border:0;color:var(--muted);font:inherit;font-weight:600;padding:7px 16px;border-radius:7px;cursor:pointer}
+.tabs button[aria-selected=true]{background:var(--accent);color:var(--accent-ink)}
+.banner{margin:0 22px;padding:10px 14px;border:1px solid var(--warn);border-radius:10px;background:rgba(227,164,59,.08);font-size:13px}
+.banner b{color:var(--warn)}
+.banner .btn{margin-top:8px;padding:6px 12px}
+@media (max-width:960px){.banner{margin:0 12px}}
+.logbtn{background:none;border:1px solid var(--line);color:var(--muted);border-radius:6px;padding:2px 8px;font:inherit;font-size:12px;cursor:pointer;margin-left:4px}
+.logbtn:hover{color:var(--text);border-color:var(--muted)}
+/* ---- logboek ---- */
+.lg-content{display:flex;flex-direction:column;gap:16px;min-width:0}
+.tiles{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:12px}
+.tile{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:12px 14px}
+.tile .k{font-size:12px;color:var(--muted)}
+.tile .v{font-size:24px;font-weight:700;margin-top:2px}
+.tile .s{font-size:12px;color:var(--muted);margin-top:2px}
+.tile.big{grid-column:span 2}
+@media (max-width:600px){.tile.big{grid-column:auto}}
+.prog{height:8px;background:var(--panel2);border-radius:99px;overflow:hidden;margin-top:8px}
+.prog>i{display:block;height:100%;background:var(--accent);border-radius:99px}
+.card{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:12px 14px 10px;min-width:0}
+.card h3{margin:0 0 2px;font-size:14px}
+.card .sub2{margin:0 0 8px;font-size:12px;color:var(--muted)}
+.charts{display:grid;grid-template-columns:repeat(auto-fit,minmax(340px,1fr));gap:16px}
+.chart{position:relative;width:100%}
+.chart svg{display:block;width:100%;overflow:visible}
+.legend{display:flex;gap:14px;font-size:12px;color:var(--muted);margin:0 0 6px}
+.legend i{display:inline-block;width:10px;height:10px;border-radius:2px;margin-right:5px;vertical-align:-1px}
+.tip{position:absolute;pointer-events:none;background:#0b0f15;border:1px solid var(--line);border-radius:8px;padding:7px 9px;font-size:12px;white-space:nowrap;z-index:5;display:none;box-shadow:0 4px 14px rgba(0,0,0,.4)}
+.tip b{display:block;font-size:13px}
+.tip .row{display:flex;align-items:center;gap:6px}
+.tip .row i{display:inline-block;width:12px;height:2px;border-radius:1px}
+.filters{display:flex;flex-wrap:wrap;gap:6px;align-items:center}
+.filters span{color:var(--muted);font-size:12.5px;margin-right:4px}
+.amountPreview{font-size:12px;color:var(--muted);margin:-4px 0 8px}
+td.pos{color:var(--good);font-weight:600} td.neg{color:var(--bad);font-weight:600}
+.del{background:none;border:1px solid var(--line);color:var(--muted);border-radius:6px;padding:2px 8px;font:inherit;font-size:12px;cursor:pointer}
+.del.confirm{border-color:var(--bad);color:var(--bad)}
+.syncnote{font-size:12px;color:var(--muted);margin:0 0 10px}
+.syncnote.err{color:var(--bad)}
+.lg-table table{min-width:640px}
+
+</style>
+</head>
+<body>
+<header>
+  <div>
+    <h1>Albion <span>Tools</span></h1>
+    <p class="sub" id="siteSub">Flippen, handelsroutes en craften met live prijzen · logboek voor je winst en uitgaven</p>
+  </div>
+  <nav class="tabs" role="tablist" aria-label="Tools">
+    <button type="button" role="tab" id="tabMarkt" data-view="markt" aria-selected="true">Markt</button>
+    <button type="button" role="tab" id="tabLogboek" data-view="logboek" aria-selected="false">Logboek</button>
+  </nav>
+</header>
+<div class="banner hidden" id="hostBanner"><b>Live prijzen werken niet op deze claude.ai-pagina.</b> claude.ai blokkeert verzoeken naar andere sites, ook naar de Albion Data Project. Het <b>logboek</b> werkt hier wel en wordt online bewaard. Voor Markt en Handelsroutes gebruik je de downloadversie van deze site (zelfde tabs, met live prijzen).
+  <div><button type="button" class="btn" id="dlSelfBtn">Download versie met live prijzen</button> <span class="est" id="dlSelfMsg"></span></div>
+</div>
+
+<main id="viewMarkt">
+<aside class="panel" aria-label="Instellingen">
+
+  <div class="group">
+    <h2>Server &amp; account</h2>
+    <label class="field"><span>Server</span>
+      <select id="server">
+        <option value="europe">Europa</option>
+        <option value="west">Amerika (West)</option>
+        <option value="east">Azië (East)</option>
+      </select>
+    </label>
+    <label class="check"><input type="checkbox" id="premium"><span>Premium actief <small style="color:var(--muted)">(verkoopbelasting 4% in plaats van 8%)</small></span></label>
+  </div>
+
+  <div class="group">
+    <h2>Route</h2>
+    <div class="seg" role="group" aria-label="Modus">
+      <button type="button" id="modeBm" aria-pressed="true">Black Market</button>
+      <button type="button" id="modeCity" aria-pressed="false">Stad → stad</button>
+      <button type="button" id="modeRoutes" aria-pressed="false">Routes</button>
+      <button type="button" id="modeCraft" aria-pressed="false">Craften</button>
+    </div>
+    <div class="field"><span id="buyLabel">Koop in</span><div class="chips" id="buyCities"></div></div>
+    <div class="field" id="sellCitiesWrap"><span id="sellLabel">Verkoop in</span><div class="chips" id="sellCities"></div></div>
+    <label class="field"><span id="buyMethodLabel">Hoe koop je in?</span>
+      <select id="buyMethod">
+        <option value="instant">Direct kopen van sell orders (geen setup fee)</option>
+        <option value="order">Buy order plaatsen (2,5% setup fee)</option>
+      </select>
+    </label>
+    <label class="field" id="sellMethodWrap"><span id="sellMethodLabel">Hoe verkoop je?</span>
+      <select id="sellMethod">
+        <option value="instant">Direct verkopen aan buy orders (alleen belasting)</option>
+        <option value="order">Sell order plaatsen (2,5% fee + belasting)</option>
+      </select>
+    </label>
+    <p class="est" id="modeHint"></p>
+  </div>
+
+  <div class="group hidden" id="craftBox">
+    <h2>Craften</h2>
+    <label class="field"><span>Resource return rate (teruggekregen grondstoffen)</span>
+      <select id="rrr">
+        <option value="p1">Geen bonus, geen focus (15,2%)</option>
+        <option value="p2">Bonusstad, geen focus (36,7%)</option>
+        <option value="p3">Geen bonus, met focus (43,5%)</option>
+        <option value="p4">Bonusstad + focus (53,9%)</option>
+        <option value="custom">Eigen waarde…</option>
+      </select>
+    </label>
+    <label class="field hidden" id="rrrCustomWrap"><span>Eigen return rate (%)</span><input type="number" id="rrrCustom" min="0" max="90" step="0.1"></label>
+    <label class="field"><span>Stationkosten per 100 voeding (silver)</span><input type="number" id="stationFee" min="0" step="10"></label>
+    <p class="est">0 = niet meegerekend. Vul in wat je in-game bij het station ziet. De itemwaarde wordt geschat uit de grondstoffen (zonder artefacten).</p>
+    <p class="est">Rekent met het standaardrecept van elk item. Artefacten en tokens krijg je niet terug en tellen dus voor 100% mee.</p>
+  </div>
+
+  <div class="group">
+    <h2>Items</h2>
+    <div class="chips" id="cats"></div>
+    <div class="chips" id="tiers"></div>
+    <div class="chips" id="ench"></div>
+    <label class="field"><span>Artefact-items (artefact-wapens, -armor, -off-hands)</span>
+      <select id="art">
+        <option value="all">Alle items</option>
+        <option value="only">Alleen artefact-items</option>
+        <option value="none">Geen artefact-items</option>
+      </select>
+    </label>
+    <label class="field"><span>Kwaliteit</span>
+      <select id="quality">
+        <option value="1">Alleen Normal (snelste scan)</option>
+        <option value="1,2,3,4,5">Alle kwaliteiten (5× zoveel data)</option>
+      </select>
+    </label>
+    <p class="est" id="est"></p>
+  </div>
+
+  <div class="btns">
+    <button type="button" class="btn primary" id="scanBtn">Scan starten</button>
+    <button type="button" class="btn" id="stopBtn" disabled>Stop</button>
+    <button type="button" class="btn" id="testBtn">Test verbinding</button>
+  </div>
+  <div class="bar" id="bar"><i id="barFill"></i></div>
+  <div class="status" id="status" role="status" aria-live="polite"></div>
+
+  <div class="group">
+    <h2>Verkoopvolume</h2>
+    <label class="check"><input type="checkbox" id="volAuto"><span>Na de scan automatisch het volume ophalen</span></label>
+    <label class="field"><span>Volume ophalen voor de beste … items (op winst per stuk)</span>
+      <select id="volN"><option>100</option><option>200</option><option>400</option><option>800</option><option>1500</option></select>
+    </label>
+    <div class="btns"><button type="button" class="btn" id="volBtn">Volume ophalen voor deze lijst</button></div>
+    <label class="field"><span>Min. verkocht per dag (0 = uit)</span><input type="number" id="minVol" min="0" step="1"></label>
+    <p class="est" id="volEst"></p>
+    <p class="est" id="volHint">Gemiddeld aantal verkochte stuks per dag over de laatste 7 volle dagen. Het filter kijkt naar de kleinste bekende kant van de route en verbergt rijen zonder volumedata.</p>
+  </div>
+
+  <div class="group">
+    <h2>Filters (werken direct)</h2>
+    <label class="field"><span>Maximale leeftijd van de prijsdata</span>
+      <select id="maxAge">
+        <option value="1">1 uur</option><option value="3">3 uur</option><option value="6">6 uur</option>
+        <option value="12">12 uur</option><option value="24">24 uur</option>
+      </select>
+    </label>
+    <div class="row2">
+      <label class="field"><span>Min. winst (silver)</span><input type="number" id="minProfit" min="0" step="1000"></label>
+      <label class="field"><span id="maxBuyLabel">Max. aankoopprijs</span><input type="number" id="maxBuy" min="0" step="10000" placeholder="geen limiet"></label>
+    </div>
+    <div class="row2">
+      <label class="field"><span>Min. ROI (%)</span><input type="number" id="minRoi" min="0" step="1"></label>
+      <label class="field"><span>Max. ROI (%) – verbergt uitschieters</span><input type="number" id="maxRoi" min="0" step="10"></label>
+    </div>
+    <label class="field"><span>Zoek op naam</span><input type="text" id="q" placeholder="bijv. bow, soldier, cape, ore"></label>
+    <div class="row2">
+      <label class="field"><span>Rijen tonen</span>
+        <select id="limit"><option>50</option><option>100</option><option>250</option><option>500</option></select>
+      </label>
+      <label class="check" style="align-self:end;margin-bottom:12px"><input type="checkbox" id="showAll"><span>Alle routes per item</span></label>
+    </div>
+  </div>
+
+  <details>
+    <summary>Werkt scannen niet? Plak de JSON handmatig</summary>
+    <p class="est" style="margin-top:8px">Open in een nieuw tabblad een prijs-link van de API, kopieer de hele JSON en plak hem hier.</p>
+    <textarea id="paste" placeholder='[{"item_id":"T4_BAG","city":"Caerleon",...}]'></textarea>
+    <div class="btns" style="margin-top:8px"><button type="button" class="btn" id="pasteBtn">Verwerk JSON</button></div>
+  </details>
+</aside>
+
+<section class="results" aria-label="Resultaten">
+  <div class="sum" id="sum"><b>Nog geen scan</b><small>Kies links je route en items en klik op “Scan starten”.</small></div>
+  <div class="tablewrap">
+    <table id="tbl" class="hidden">
+      <thead><tr id="thead"></tr></thead>
+      <tbody id="tbody"></tbody>
+    </table>
+    <div class="empty" id="empty">Hier verschijnen de resultaten zodra de scan klaar is.</div>
+  </div>
+  <div class="note">Prijzen komen van spelers die de Albion Data Client draaien en kunnen verouderd zijn. “Verk./dag” is het gemiddeld aantal verkochte stuks per dag (7 dagen, uit de history van de Data Project; dagen zonder data tellen als 0, dus het getal is eerder te laag dan te hoog). Hoeveel stuks er <i>nu</i> te koop staan of gevraagd worden zie je hier niet, en voor de Black Market is er mogelijk geen history. Controleer altijd in-game voordat je koopt of craft.</div>
+</section>
+</main>
+
+<main id="viewLog" class="hidden">
+<aside class="panel" aria-label="Logboek invoer">
+  <div class="group">
+    <h2>Nieuwe regel</h2>
+    <div class="seg" style="grid-template-columns:1fr 1fr" role="group" aria-label="Soort">
+      <button type="button" id="lgTypeWin" aria-pressed="true">Winst</button>
+      <button type="button" id="lgTypeExp" aria-pressed="false">Uitgave</button>
+    </div>
+    <label class="field"><span>Actie</span><select id="lgCat"></select></label>
+    <label class="field"><span>Omschrijving (optioneel)</span><input type="text" id="lgNote" maxlength="120" placeholder="bijv. T5 broadsword Lymhurst → BM"></label>
+    <div class="row2">
+      <label class="field"><span id="lgAmountLabel">Winst (silver)</span><input type="text" id="lgAmount" inputmode="decimal" placeholder="bijv. 250k of 1,2m"></label>
+      <label class="field"><span>Aantal</span><input type="number" id="lgQty" min="1" step="1" value="1"></label>
+    </div>
+    <p class="amountPreview" id="lgPreview"></p>
+    <label class="field"><span>Datum en tijd</span><input type="datetime-local" id="lgDate"></label>
+    <div class="btns"><button type="button" class="btn primary" id="lgAdd">Toevoegen</button></div>
+    <div class="status" id="lgStatus" role="status" aria-live="polite"></div>
+  </div>
+  <div class="group">
+    <h2>Doel</h2>
+    <div class="row2">
+      <label class="field"><span>Startkapitaal</span><input type="text" id="lgStart" inputmode="decimal"></label>
+      <label class="field"><span>Doel</span><input type="text" id="lgGoal" inputmode="decimal"></label>
+    </div>
+    <p class="est">Vermogen = startkapitaal + alle winst − alle uitgaven. Bedragen mogen met k, m of b (250k, 1,2m, 1b).</p>
+  </div>
+  <div class="group">
+    <h2>Opslag en back-up</h2>
+    <p class="syncnote" id="lgSync">Opslag: in deze browser.</p>
+    <div class="btns">
+      <button type="button" class="btn" id="lgExport">Exporteer JSON</button>
+      <button type="button" class="btn" id="lgExportCsv">Exporteer CSV</button>
+      <label class="btn" style="display:inline-block">Importeer JSON<input type="file" id="lgImport" accept=".json,application/json" class="hidden"></label>
+    </div>
+    <p class="est" id="lgIoMsg"></p>
+  </div>
+</aside>
+
+<section class="lg-content" aria-label="Logboek overzicht">
+  <div class="filters" id="lgPeriods"><span>Periode</span></div>
+  <div class="tiles" id="lgTiles"></div>
+  <div class="charts">
+    <div class="card"><h3>Vermogen over tijd</h3><p class="sub2" id="lgLineSub">Startkapitaal plus netto resultaat, na elke regel</p><div class="chart" id="chLine"></div></div>
+    <div class="card"><h3>Winst en uitgaven per dag</h3>
+      <div class="legend"><span><i style="background:var(--s1)"></i>Winst</span><span><i style="background:var(--s2)"></i>Uitgaven</span></div>
+      <div class="chart" id="chBars"></div></div>
+    <div class="card"><h3>Netto per actie</h3>
+      <div class="legend"><span><i style="background:var(--s1)"></i>Netto positief</span><span><i style="background:var(--s2)"></i>Netto negatief</span></div>
+      <div class="chart" id="chCats"></div></div>
+  </div>
+  <div class="results lg-table">
+    <div class="sum" id="lgSum"><b>Regels</b></div>
+    <div class="tablewrap">
+      <table id="lgTbl" class="hidden"><thead><tr><th>Datum</th><th>Soort</th><th>Actie</th><th>Omschrijving</th><th class="num">Aantal</th><th class="num">Bedrag</th><th></th></tr></thead><tbody id="lgBody"></tbody></table>
+      <div class="empty" id="lgEmpty">Nog geen regels. Voeg links je eerste winst of uitgave toe, of klik in Markt op “Log” bij een kans.</div>
+    </div>
+  </div>
+</section>
+</main>
+
+<script>
+"use strict";
+const PRISTINE = "<!DOCTYPE html>\n" + document.documentElement.outerHTML;   // __SITE_MARKER__ (voor de downloadversie)
+
+/* ---------- Data ---------- */
+const BASES = __ITEMDATA__;
+const BASEMAP = Object.create(null);
+for (const it of BASES) BASEMAP[it.b] = it;
+
+const TIERWORD = {4:"Adept's",5:"Expert's",6:"Master's",7:"Grandmaster's",8:"Elder's"};
+const API = {
+  europe: "https://europe.albion-online-data.com",
+  west: "https://west.albion-online-data.com",
+  east: "https://east.albion-online-data.com"
+};
+const CITIES = ["Caerleon","Bridgewatch","Fort Sterling","Lymhurst","Martlock","Thetford","Brecilien"];
+const BM = "Black Market";
+const CAT_LABELS = [["w","Wapens"],["a","Armor"],["o","Off-hand"],["c","Mantels"],["b","Tassen"],["g","Gatherer-gear"],["r","Ruwe grondstoffen"],["m","Gerefinde materialen"]];
+const CAT_TITLES = {
+  r: "Alleen in Stad → stad. De Black Market koopt geen grondstoffen en ruwe grondstoffen worden niet gecraft.",
+  m: "Stad → stad: flip gerefinde materialen. Craften: refine-winst (ruwe grondstof naar gerefind)."
+};
+const QNAME = {1:"",2:"Good",3:"Outstanding",4:"Excellent",5:"Masterpiece"};
+const TAX_PREMIUM = 0.04, TAX_FREE = 0.08, SETUP = 0.025;
+const RRR_PRESETS = {p1:0.152, p2:0.367, p3:0.435, p4:0.539};
+const MIN_GAP_MS = 1100;          // blijft onder de limiet van de API
+const MAX_URL = 3600;             // ruim onder de 4096 tekens
+const KEY = "albionFlipToolSettings.v1";
+
+/* ---------- State ---------- */
+const S = {
+  server:"europe", premium:false, mode:"bm",
+  buyCities:new Set(CITIES), sellCities:new Set(CITIES),
+  matCities:new Set(CITIES), craftSell:new Set([BM, ...CITIES]),
+  buyMethod:"instant", sellMethod:"instant",
+  cats:new Set(["w","a","o","c","b"]), tiers:new Set([4,5,6]), ench:new Set([0,1,2,3,4]),
+  art:"all", quality:"1", maxAge:6, minProfit:5000, minRoi:5, maxRoi:200, maxBuy:0,
+  rrr:"p2", rrrCustom:40, stationFee:0,
+  q:"", showAll:false, limit:100, volAuto:true, minVol:0, volN:200,
+  routeSell:new Set([BM, ...CITIES])
+};
+let sort = {k:"profit", dir:-1};
+const store = new Map();   // "ITEMID|quality" -> { stad: {sell, sellT, buy, buyT} }
+const volStore = new Map(); // "ITEMID|quality|stad" -> { perDay, days, avgPrice, t } of { none:true, t }
+const HIST_DAYS = 7, VOL_IDS_PER_REQ = 40, VOL_TTL = 3 * 3600000;
+let scanning = false, ctrl = null, lastScan = null, failedChunks = 0, missingCount = 0, barTimer = null;
+const openDetails = new Set();
+
+const $ = id => document.getElementById(id);
+
+/* ---------- Instellingen opslaan ---------- */
+function saveSettings(){
+  try{
+    localStorage.setItem(KEY, JSON.stringify({
+      ...S, buyCities:[...S.buyCities], sellCities:[...S.sellCities],
+      matCities:[...S.matCities], craftSell:[...S.craftSell], routeSell:[...S.routeSell],
+      cats:[...S.cats], tiers:[...S.tiers], ench:[...S.ench]
+    }));
+  }catch(e){}
+}
+function loadSettings(){
+  try{
+    const j = JSON.parse(localStorage.getItem(KEY) || "null");
+    if(!j) return;
+    const cityList = a => new Set(a.filter(c => CITIES.includes(c)));
+    if(API[j.server]) S.server = j.server;
+    if(typeof j.premium === "boolean") S.premium = j.premium;
+    if(j.mode === "bm" || j.mode === "city" || j.mode === "craft" || j.mode === "routes") S.mode = j.mode;
+    if(Array.isArray(j.routeSell)) S.routeSell = new Set(j.routeSell.filter(c => CITIES.includes(c) || c === BM));
+    if([100,200,400,800,1500].includes(j.volN)) S.volN = j.volN;
+    if(Array.isArray(j.buyCities)) S.buyCities = cityList(j.buyCities);
+    if(Array.isArray(j.sellCities)) S.sellCities = cityList(j.sellCities);
+    if(Array.isArray(j.matCities)) S.matCities = cityList(j.matCities);
+    if(Array.isArray(j.craftSell)) S.craftSell = new Set(j.craftSell.filter(c => CITIES.includes(c) || c === BM));
+    if(j.buyMethod === "instant" || j.buyMethod === "order") S.buyMethod = j.buyMethod;
+    if(j.sellMethod === "instant" || j.sellMethod === "order") S.sellMethod = j.sellMethod;
+    if(Array.isArray(j.cats)) S.cats = new Set(j.cats.filter(c => CAT_LABELS.some(x => x[0] === c)));
+    if(Array.isArray(j.tiers)) S.tiers = new Set(j.tiers.filter(t => t >= 2 && t <= 8));
+    if(Array.isArray(j.ench)) S.ench = new Set(j.ench.filter(e => e >= 0 && e <= 4));
+    if(j.quality === "1" || j.quality === "1,2,3,4,5") S.quality = j.quality;
+    if(j.art === "all" || j.art === "only" || j.art === "none") S.art = j.art;
+    for(const k of ["maxAge","minProfit","minRoi","maxRoi","maxBuy","limit","rrrCustom","stationFee","minVol"]) if(Number.isFinite(j[k])) S[k] = j[k];
+    if(typeof j.volAuto === "boolean") S.volAuto = j.volAuto;
+    if(j.rrr === "custom" || RRR_PRESETS[j.rrr] != null) S.rrr = j.rrr;
+    if(typeof j.showAll === "boolean") S.showAll = j.showAll;
+  }catch(e){}
+}
+
+/* ---------- Hulpfuncties ---------- */
+const fmt = n => Math.round(n).toLocaleString("nl-NL");
+function parseDate(s){
+  if(!s || String(s).startsWith("0001")) return null;
+  const str = String(s);
+  const t = Date.parse(/[zZ]$|[+-]\d\d:?\d\d$/.test(str) ? str : str + "Z");
+  return Number.isNaN(t) ? null : t;
+}
+function fmtAge(t){
+  const m = Math.max(0, Math.round((Date.now() - t) / 60000));
+  if(m < 60) return m + " min";
+  const h = Math.floor(m / 60), r = m % 60;
+  return h + " u" + (h < 24 && r ? " " + r + " min" : "");
+}
+function ageClass(t){
+  const h = (Date.now() - t) / 3600000;
+  return h <= 1 ? "fresh" : h <= 6 ? "mid" : "old";
+}
+function normCity(c){
+  const k = String(c || "").toLowerCase().replace(/[^a-z]/g, "");
+  if(k === "blackmarket") return BM;
+  return CITIES.find(x => x.toLowerCase().replace(/[^a-z]/g, "") === k) || null;
+}
+function setStatus(msg, cls){
+  const el = $("status");
+  el.textContent = msg;
+  el.className = "status" + (cls ? " " + cls : "");
+}
+function sleep(ms, signal){
+  return new Promise((resolve, reject) => {
+    const t = setTimeout(resolve, ms);
+    if(signal) signal.addEventListener("abort", () => { clearTimeout(t); reject(new DOMException("Aborted","AbortError")); }, {once:true});
+  });
+}
+
+/* ---------- Items en recepten ---------- */
+const ID_RE = /^T(\d)_(.+?)(?:_LEVEL\d)?(?:@(\d))?$/;
+function parseId(id){
+  const m = ID_RE.exec(id);
+  if(!m) return null;
+  const it = BASEMAP[m[2]];
+  return it ? {it, tier:+m[1], e:+(m[3] || 0)} : null;
+}
+function nameOf(it, tier){
+  if(it.nn) return it.nn[tier] || (it.b + " T" + tier);
+  return it.p ? TIERWORD[tier] + " " + it.n : it.n;
+}
+function productId(it, tier, e){
+  if(it.f === "L") return "T" + tier + "_" + it.b + (e ? "_LEVEL" + e + "@" + e : "");
+  return "T" + tier + "_" + it.b + (e ? "@" + e : "");
+}
+function expandTpl(tpl, tier, e){
+  return tpl.map(([k, key, n, r]) => {
+    let id;
+    if(k === "R") id = "T" + tier + "_" + key + (e ? "_LEVEL" + e + "@" + e : "");
+    else if(k === "A") id = "T" + tier + "_" + key;
+    else if(k === "E") id = "T" + tier + "_" + key + (e ? "@" + e : "");
+    else if(k === "S") id = key + "_T" + tier;
+    else id = key;
+    return [id, n, r];
+  });
+}
+const recipeCache = new Map();
+function recipeFor(it, tier, e){
+  const ck = it.b + "|" + tier + "|" + e;
+  if(recipeCache.has(ck)) return recipeCache.get(ck);
+  let rec = null;
+  const k = tier + "_" + e;
+  if(it.rx) rec = it.rx[k] || null;
+  else if(it.rc){
+    if(it.ov && Object.prototype.hasOwnProperty.call(it.ov, k)) rec = it.ov[k];
+    else rec = expandTpl(it.rc, tier, e);
+  }
+  recipeCache.set(ck, rec);
+  return rec;
+}
+function ivOfComp(id){
+  const m = /^T(\d)_(METALBAR|PLANKS|CLOTH|LEATHER|STONEBLOCK)(?:_LEVEL(\d)@\d)?$/.exec(id);
+  return m ? Math.pow(2, +m[1] + (+m[3] || 0)) : 0;
+}
+function itemValue(it, tier, e, rec){
+  if(it.c === "m") return Math.pow(2, tier + e);
+  return rec.reduce((s, c) => s + c[1] * ivOfComp(c[0]), 0);
+}
+function compName(id){
+  const p = parseId(id);
+  if(!p) return id;
+  return nameOf(p.it, p.tier) + (p.e ? " ." + p.e : "");
+}
+function catAllowed(c){
+  if(S.mode === "bm") return c !== "r" && c !== "m";
+  if(S.mode === "craft") return c !== "r";
+  return true;
+}
+function artOk(it){
+  return S.art === "all" || (S.art === "only" ? !!it.af : !it.af);
+}
+function selectedProducts(){
+  const out = [];
+  for(const it of BASES){
+    if(!S.cats.has(it.c) || !catAllowed(it.c) || !artOk(it)) continue;
+    for(let ti = 0; ti < 7; ti++){
+      const tier = 2 + ti;
+      if(!S.tiers.has(tier)) continue;
+      const mask = it.m[ti];
+      for(let e = 0; e < 5; e++){
+        if(!((mask >> e) & 1) || !S.ench.has(e)) continue;
+        if(S.mode === "craft" && !recipeFor(it, tier, e)) continue;
+        out.push({it, tier, e, id:productId(it, tier, e)});
+      }
+    }
+  }
+  return out;
+}
+function passesSelection(p){
+  return S.cats.has(p.it.c) && catAllowed(p.it.c) && artOk(p.it) && S.tiers.has(p.tier) && S.ench.has(p.e);
+}
+
+/* ---------- Verzoeken opbouwen ---------- */
+function buildJobs(){
+  const prods = selectedProducts();
+  if(!prods.length) return [];
+  if(S.mode === "craft"){
+    const mats = new Set();
+    for(const p of prods) for(const c of recipeFor(p.it, p.tier, p.e)) mats.add(c[0]);
+    return [
+      {ids:prods.map(p => p.id), locs:[...S.craftSell], q:"1"},
+      {ids:[...mats], locs:[...S.matCities], q:"1"}
+    ];
+  }
+  const locs = S.mode === "bm" ? [BM, ...S.buyCities]
+    : S.mode === "routes" ? [...new Set([...S.buyCities, ...S.routeSell])]
+    : [...new Set([...S.buyCities, ...S.sellCities])];
+  return [{ids:prods.map(p => p.id), locs, q:S.quality}];
+}
+function urlsForJob(job){
+  if(!job.ids.length || !job.locs.length) return [];
+  const locs = job.locs.map(encodeURIComponent).join(",");
+  const tail = "?locations=" + locs + "&qualities=" + job.q;
+  const head = API[S.server] + "/api/v2/stats/prices/";
+  const budget = MAX_URL - head.length - tail.length;
+  const urls = [];
+  let cur = [], len = 0;
+  for(const id of job.ids){
+    if(cur.length && len + id.length + 1 > budget){ urls.push(head + cur.join(",") + tail); cur = []; len = 0; }
+    cur.push(id); len += id.length + 1;
+  }
+  if(cur.length) urls.push(head + cur.join(",") + tail);
+  return urls;
+}
+function allUrls(){ return buildJobs().flatMap(urlsForJob); }
+
+function updateEstimate(){
+  const jobs = buildJobs();
+  if(!jobs.length){ $("est").textContent = "Kies minstens één categorie, tier en enchant" + (S.mode === "craft" ? " (met een recept)." : "."); return; }
+  const n = jobs.reduce((s, j) => s + urlsForJob(j).length, 0);
+  const items = jobs.reduce((s, j) => s + j.ids.length, 0);
+  const secs = Math.ceil(n * MIN_GAP_MS / 1000);
+  $("est").textContent = "≈ " + items.toLocaleString("nl-NL") + " items · " + n + " verzoeken · ±" + secs + " s";
+}
+
+/* ---------- Ophalen ---------- */
+let lastReq = 0;
+async function throttle(signal){
+  const wait = lastReq + MIN_GAP_MS - Date.now();
+  if(wait > 0) await sleep(wait, signal);
+  lastReq = Date.now();
+}
+async function fetchJson(url, signal){
+  let lastErr = null;
+  for(let attempt = 0; attempt < 4; attempt++){
+    await throttle(signal);
+    const res = await fetch(url, {signal});
+    if(res.status === 429){ lastErr = new Error("Rate limit (429)"); await sleep(8000 * (attempt + 1), signal); continue; }
+    if(res.status >= 500){ lastErr = new Error("Serverfout (" + res.status + ")"); await sleep(2500 * (attempt + 1), signal); continue; }
+    if(!res.ok) throw new Error("HTTP " + res.status);
+    return await res.json();
+  }
+  throw lastErr || new Error("Mislukt");
+}
+function ingest(arr){
+  if(!Array.isArray(arr)) return 0;
+  let n = 0;
+  for(const r of arr){
+    const city = normCity(r.city || r.location);
+    if(!city || !r.item_id) continue;
+    const key = r.item_id + "|" + (r.quality || 1);
+    let o = store.get(key);
+    if(!o){ o = Object.create(null); store.set(key, o); }
+    const rec = o[city] || (o[city] = {sell:null, sellT:null, buy:null, buyT:null});
+    const s = Number(r.sell_price_min) || 0, b = Number(r.buy_price_max) || 0;
+    if(s > 0){ rec.sell = s; rec.sellT = parseDate(r.sell_price_min_date); }
+    if(b > 0){ rec.buy = b; rec.buyT = parseDate(r.buy_price_max_date); }
+    n++;
+  }
+  return n;
+}
+const CORS_HINT = "De browser kreeg geen antwoord van de API. Mogelijke oorzaken: geen internet, een adblocker/VPN die de site blokkeert, of de API staat cross-origin verzoeken niet toe. Gebruik anders ‘Plak de JSON handmatig’ onderaan het paneel.";
+
+async function scan(){
+  if(scanning) return;
+  if(S.mode === "routes"){
+    if(!S.buyCities.size || !S.routeSell.size){ setStatus("Kies minstens één stad om in te kopen en één plek om te verkopen.", "err"); return; }
+  }else if(S.mode === "craft"){
+    if(!S.matCities.size || !S.craftSell.size){ setStatus("Kies minstens één stad voor materialen en één plek om te verkopen.", "err"); return; }
+  }else if(!S.buyCities.size || (S.mode === "city" && !S.sellCities.size)){
+    setStatus("Kies minstens één stad om in te kopen" + (S.mode === "city" ? " en één om in te verkopen" : "") + ".", "err"); return;
+  }
+  const urls = allUrls();
+  if(!urls.length){ setStatus("Kies minstens één categorie, tier en enchant.", "err"); return; }
+  store.clear(); failedChunks = 0;
+  setBusy(true); ctrl = new AbortController(); showBar();
+  let done = 0, ok = 0, fatal = null;
+  for(const url of urls){
+    try{
+      const data = await fetchJson(url, ctrl.signal);
+      ingest(data); ok++;
+    }catch(e){
+      if(e.name === "AbortError") break;
+      if(e instanceof TypeError && ok === 0){ fatal = CORS_HINT; break; }
+      failedChunks++;
+    }
+    done++;
+    $("barFill").style.width = Math.round(done / urls.length * 100) + "%";
+    setStatus("Bezig… verzoek " + done + " van " + urls.length);
+    if(done % 3 === 0) render();
+  }
+  const aborted = ctrl.signal.aborted;
+  setBusy(false); hideBarSoon();
+  if(fatal){ setStatus(fatal, "err"); render(); return; }
+  lastScan = Date.now();
+  render();
+  let msg, cls = "ok";
+  if(aborted){ msg = "Gestopt. Je ziet de tussentijdse resultaten."; cls = ""; }
+  else if(failedChunks){ msg = "Klaar, maar " + failedChunks + " van " + urls.length + " verzoeken zijn mislukt. De lijst is onvolledig; scan opnieuw."; cls = "err"; }
+  else msg = "Klaar: " + urls.length + " verzoeken verwerkt.";
+  if(S.volAuto && !aborted && store.size) await fetchVolumes(msg, cls);
+  else setStatus(msg, cls);
+}
+
+/* ---------- Verkoopvolume (history) ---------- */
+function setBusy(b){
+  scanning = b;
+  $("scanBtn").disabled = b; $("volBtn").disabled = b; $("stopBtn").disabled = !b;
+}
+function showBar(){ clearTimeout(barTimer); $("bar").style.display = "block"; $("barFill").style.width = "0"; }
+function hideBarSoon(){
+  clearTimeout(barTimer);
+  barTimer = setTimeout(() => { $("bar").style.display = "none"; $("barFill").style.width = "0"; }, 600);
+}
+function volKey(id, q, city){ return id + "|" + q + "|" + city; }
+function volEntry(id, q, city){
+  const e = volStore.get(volKey(id, q, city));
+  return e && Date.now() - e.t <= VOL_TTL ? e : null;
+}
+function volGet(id, q, city){
+  const e = volEntry(id, q, city);
+  if(!e) return {s:"na", city};
+  if(e.none) return {s:"none", city};
+  return {s:"ok", city, perDay:e.perDay, days:e.days, avgPrice:e.avgPrice};
+}
+// Gemiddelde over de laatste 7 volle dagen (UTC); dagen zonder record tellen als 0. De lopende dag is onvolledig en telt niet mee.
+function histStats(data){
+  const today = Math.floor(Date.now() / 86400000);
+  const days = new Map();
+  for(const d of data){
+    const t = d ? parseDate(d.timestamp) : null;
+    if(t == null) continue;
+    const idx = Math.floor(t / 86400000);
+    if(idx < today - HIST_DAYS || idx >= today) continue;
+    days.set(idx, {n:Number(d.item_count) || 0, p:Number(d.avg_price) || 0});
+  }
+  let sum = 0, val = 0;
+  for(const v of days.values()){ sum += v.n; val += v.n * v.p; }
+  return {perDay:sum / HIST_DAYS, days:days.size, avgPrice:sum ? val / sum : null};
+}
+function ingestHistory(arr){
+  if(!Array.isArray(arr)) return 0;
+  let n = 0;
+  for(const r of arr){
+    const city = r ? normCity(r.location || r.city) : null;
+    if(!city || !r.item_id || !Array.isArray(r.data)) continue;
+    volStore.set(volKey(r.item_id, r.quality || 1, city), {...histStats(r.data), t:Date.now()});
+    n++;
+  }
+  return n;
+}
+function histChunks(ids, locs, qs){
+  const tail = "?locations=" + locs.map(encodeURIComponent).join(",") + "&qualities=" + qs.join(",") + "&time-scale=24";
+  const head = API[S.server] + "/api/v2/stats/history/";
+  const budget = MAX_URL - head.length - tail.length;
+  const out = [];
+  let cur = [], len = 0;
+  for(const id of ids){
+    if(cur.length && (cur.length >= VOL_IDS_PER_REQ || len + id.length + 1 > budget)){
+      out.push({ids:cur, url:head + cur.join(",") + tail}); cur = []; len = 0;
+    }
+    cur.push(id); len += id.length + 1;
+  }
+  if(cur.length) out.push({ids:cur, url:head + cur.join(",") + tail});
+  return out;
+}
+function rowSides(r){ return r.from === "Craft" ? [r.to] : [r.from, r.to]; }
+function attachVol(r){
+  r.vA = r.from === "Craft" ? null : volGet(r.id, r.quality, r.from);
+  r.vB = volGet(r.id, r.quality, r.to);
+  const sides = r.vA ? [r.vA, r.vB] : [r.vB];
+  const known = sides.filter(v => v.s === "ok").map(v => v.perDay);
+  r.vEff = known.length ? Math.min(...known) : null;
+  r.pot = known.length && known.length === sides.length ? r.profit * r.vEff : null;
+}
+function volSummary(targets){
+  const per = new Map(), seen = new Set();
+  for(const r of targets) for(const loc of rowSides(r)){
+    const k = volKey(r.id, r.quality, loc);
+    if(seen.has(k)) continue;
+    seen.add(k);
+    const e = volEntry(r.id, r.quality, loc);
+    const o = per.get(loc) || {ok:0, n:0};
+    o.n++; if(e && !e.none) o.ok++;
+    per.set(loc, o);
+  }
+  return {text:[...per].map(([loc, o]) => loc + " " + o.ok + "/" + o.n).join(" · "), per};
+}
+async function fetchVolumes(prefix, prefixCls){
+  if(scanning) return;
+  const lead = prefix ? prefix + " " : "";
+  if(!store.size){ setStatus("Scan eerst een lijst; daarna kan het volume worden opgehaald.", "err"); return; }
+  const {all} = pipeline();
+  const byProfit = sort.k === "vol" || sort.k === "pot";
+  const ordered = sortRows(all.slice(), byProfit ? "profit" : sort.k, byProfit ? -1 : sort.dir);
+  const pick = new Set();
+  for(const r of ordered){ if(pick.size >= S.volN) break; pick.add(r.id + "|" + r.quality); }
+  const targets = ordered.filter(r => pick.has(r.id + "|" + r.quality));
+  if(!targets.length){ setStatus(lead + "Geen rijen om het volume van op te halen.", prefixCls); return; }
+  const need = new Map();
+  for(const r of targets) for(const loc of rowSides(r)){
+    if(volEntry(r.id, r.quality, loc)) continue;
+    const o = need.get(r.id) || {qs:new Set(), locs:new Set()};
+    o.qs.add(r.quality); o.locs.add(loc); need.set(r.id, o);
+  }
+  const qs = [...new Set([...need.values()].flatMap(o => [...o.qs]))].sort();
+  const locs = [...new Set([...need.values()].flatMap(o => [...o.locs]))];
+  const chunks = need.size ? histChunks([...need.keys()], locs, qs) : [];
+  let failed = 0, fatal = null, aborted = false;
+  if(chunks.length){
+    setBusy(true); ctrl = new AbortController(); showBar();
+    let done = 0, ok = 0;
+    for(const ch of chunks){
+      try{
+        const data = await fetchJson(ch.url, ctrl.signal);
+        const combos = [];
+        for(const id of ch.ids) for(const q of qs) for(const l of locs) combos.push(volKey(id, q, l));
+        for(const k of combos) volStore.delete(k);
+        ingestHistory(data);
+        const t = Date.now();
+        for(const k of combos) if(!volStore.has(k)) volStore.set(k, {none:true, t});
+        ok++;
+      }catch(e){
+        if(e.name === "AbortError") break;
+        if(e instanceof TypeError && ok === 0){ fatal = CORS_HINT; break; }
+        failed++;
+      }
+      done++;
+      $("barFill").style.width = Math.round(done / chunks.length * 100) + "%";
+      setStatus(lead + "Volume ophalen… verzoek " + done + " van " + chunks.length);
+      if(done % 2 === 0) render();
+    }
+    aborted = ctrl.signal.aborted;
+    setBusy(false); hideBarSoon();
+  }
+  render();
+  if(fatal){ setStatus(lead + "Volume ophalen mislukt. " + fatal, "err"); return; }
+  const sum = volSummary(targets);
+  let msg = lead + "Volume met data per plek: " + sum.text + ".";
+  const bm = sum.per.get(BM);
+  if(bm && bm.n && !bm.ok) msg += " De Black Market heeft geen history-data; daar zie je alleen de koopkant.";
+  if(aborted) msg = lead + "Volume ophalen gestopt. " + sum.text + ".";
+  if(failed) msg += " " + failed + " van " + chunks.length + " volume-verzoeken zijn mislukt; klik nog eens op ‘Volume ophalen’.";
+  setStatus(msg, failed ? "err" : (prefixCls || "ok"));
+}
+
+async function testConnection(){
+  const url = API[S.server] + "/api/v2/stats/prices/T4_BAG?locations=Caerleon&qualities=1";
+  setStatus("Verbinding testen…");
+  try{
+    const res = await fetch(url);
+    if(!res.ok){ setStatus("De API antwoordde met HTTP " + res.status + ".", "err"); return; }
+    const data = await res.json();
+    const times = (Array.isArray(data) ? data : []).flatMap(r => [parseDate(r.sell_price_min_date), parseDate(r.buy_price_max_date)]).filter(Boolean);
+    const newest = times.length ? "nieuwste prijsdata: " + fmtAge(Math.max(...times)) + " oud" : "geen prijsdata voor dit testitem";
+    setStatus("Verbinding OK (" + (Array.isArray(data) ? data.length : 0) + " records, " + newest + ").", "ok");
+  }catch(e){
+    setStatus(CORS_HINT, "err");
+  }
+}
+
+function pasteJson(){
+  const text = $("paste").value.trim();
+  if(!text){ setStatus("Plak eerst JSON in het vak.", "err"); return; }
+  let arr = null;
+  try{ arr = JSON.parse(text); }
+  catch(e){
+    try{ arr = JSON.parse("[" + text.replace(/^\s*\[/, "").replace(/\]\s*$/, "").replace(/\]\s*\[/g, ",") + "]"); }
+    catch(e2){ setStatus("Dit is geen geldige JSON.", "err"); return; }
+  }
+  const isHist = Array.isArray(arr) && arr.some(x => x && Array.isArray(x.data));
+  const n = isHist ? ingestHistory(arr) : ingest(arr);
+  if(!isHist) lastScan = Date.now();
+  render();
+  setStatus(n + (isHist ? " history-records (volume) verwerkt." : " records verwerkt."), n ? "ok" : "err");
+}
+
+/* ---------- Berekenen ---------- */
+function currentRrr(){
+  if(S.rrr === "custom") return Math.min(0.9, Math.max(0, S.rrrCustom / 100));
+  return RRR_PRESETS[S.rrr] != null ? RRR_PRESETS[S.rrr] : 0;
+}
+function freshFn(){
+  const maxMs = S.maxAge * 3600000, now = Date.now();
+  return t => t != null && now - t <= maxMs;
+}
+function computeFlips(){
+  const tax = S.premium ? TAX_PREMIUM : TAX_FREE;
+  const buyFee = S.buyMethod === "order" ? SETUP : 0;
+  const routes = S.mode === "routes";
+  const sellLocs = S.mode === "bm" ? [BM] : routes ? [...S.routeSell] : [...S.sellCities];
+  const fresh = freshFn();
+  const needle = S.q.trim().toLowerCase();
+  const rows = [];
+  for(const [key, o] of store){
+    const sep = key.lastIndexOf("|");
+    const id = key.slice(0, sep), quality = +key.slice(sep + 1);
+    const p = parseId(id);
+    if(!p || !passesSelection(p)) continue;
+    const name = nameOf(p.it, p.tier);
+    if(needle && !(name.toLowerCase().includes(needle) || id.toLowerCase().includes(needle))) continue;
+    const found = [];
+    for(const a of S.buyCities){
+      const A = o[a]; if(!A) continue;
+      const bp = S.buyMethod === "instant" ? A.sell : A.buy;
+      const bt = S.buyMethod === "instant" ? A.sellT : A.buyT;
+      if(!bp || !fresh(bt)) continue;
+      if(S.maxBuy > 0 && bp > S.maxBuy) continue;
+      for(const b of sellLocs){
+        if(b === BM && (p.it.c === "r" || p.it.c === "m")) continue;   // de Black Market koopt geen grondstoffen
+        const B = o[b]; if(!B) continue;
+        const instantSell = b === BM || S.sellMethod === "instant";
+        const sellFee = tax + (!instantSell ? SETUP : 0);
+        const sp = instantSell ? B.buy : B.sell;
+        const st = instantSell ? B.buyT : B.sellT;
+        if(!sp || !fresh(st)) continue;
+        const cost = bp * (1 + buyFee), net = sp * (1 - sellFee);
+        const profit = net - cost, roi = profit / cost * 100;
+        if(profit < S.minProfit || roi < S.minRoi) continue;
+        if(S.maxRoi > 0 && roi > S.maxRoi) continue;
+        const kg = p.it.wt ? p.it.wt[p.tier - 2] || 0 : 0;
+        found.push({id, quality, name, tier:p.tier, ench:p.e, from:a, to:b, buy:bp, buyT:bt, sell:sp, sellT:st, profit, roi, kg, cat:p.it.c});
+      }
+    }
+    if(!found.length) continue;
+    if(S.showAll || routes) rows.push(...found);      // routes: beste route per item pas na het volume kiezen
+    else rows.push(found.reduce((x, y) => y.profit > x.profit ? y : x));
+  }
+  return {rows, missing:0};
+}
+function computeCrafts(){
+  const tax = S.premium ? TAX_PREMIUM : TAX_FREE;
+  const buyFee = S.buyMethod === "order" ? SETUP : 0;
+  const rrr = currentRrr();
+  const fresh = freshFn();
+  const needle = S.q.trim().toLowerCase();
+  const matCache = new Map();
+  function bestMat(id){
+    if(matCache.has(id)) return matCache.get(id);
+    let best = null;
+    const o = store.get(id + "|1");
+    if(o){
+      for(const c of S.matCities){
+        const R = o[c]; if(!R) continue;
+        const raw = S.buyMethod === "instant" ? R.sell : R.buy;
+        const t = S.buyMethod === "instant" ? R.sellT : R.buyT;
+        if(!raw || !fresh(t)) continue;
+        const eff = raw * (1 + buyFee);
+        if(!best || eff < best.eff) best = {eff, raw, city:c, t};
+      }
+    }
+    matCache.set(id, best);
+    return best;
+  }
+  const rows = [];
+  let missing = 0;
+  for(const [key, o] of store){
+    const sep = key.lastIndexOf("|");
+    const id = key.slice(0, sep), quality = +key.slice(sep + 1);
+    if(quality !== 1) continue;
+    const p = parseId(id);
+    if(!p || !passesSelection(p)) continue;
+    const rec = recipeFor(p.it, p.tier, p.e);
+    if(!rec) continue;
+    const name = nameOf(p.it, p.tier);
+    if(needle && !(name.toLowerCase().includes(needle) || id.toLowerCase().includes(needle))) continue;
+    // is er überhaupt een verkoopprijs? anders niet als 'ontbrekend' tellen
+    let hasSell = false;
+    for(const t of S.craftSell){ const B = o[t]; if(B && (B.buy || B.sell)) { hasSell = true; break; } }
+    if(!hasSell) continue;
+    const lines = [];
+    let matCost = 0, oldest = Infinity, complete = true;
+    for(const [cid, n, ret] of rec){
+      const b = bestMat(cid);
+      if(!b){ complete = false; break; }
+      const eff = ret ? (1 - rrr) : 1;
+      const cost = b.eff * n * eff;
+      matCost += cost; oldest = Math.min(oldest, b.t);
+      lines.push({id:cid, n, ret, raw:b.raw, city:b.city, t:b.t, cost, name:compName(cid)});
+    }
+    if(!complete){ missing++; continue; }
+    const fee = itemValue(p.it, p.tier, p.e, rec) * 0.1125 * S.stationFee / 100;
+    const cost = matCost + fee;
+    if(S.maxBuy > 0 && cost > S.maxBuy) continue;
+    const found = [];
+    for(const target of S.craftSell){
+      const B = o[target]; if(!B) continue;
+      const isBm = target === BM;
+      const instant = isBm || S.sellMethod === "instant";
+      const sp = instant ? B.buy : B.sell;
+      const st = instant ? B.buyT : B.sellT;
+      if(!sp || !fresh(st)) continue;
+      const net = sp * (1 - tax - (!isBm && S.sellMethod === "order" ? SETUP : 0));
+      const profit = net - cost, roi = profit / cost * 100;
+      if(profit < S.minProfit || roi < S.minRoi) continue;
+      if(S.maxRoi > 0 && roi > S.maxRoi) continue;
+      found.push({id, quality, name, tier:p.tier, ench:p.e, from:"Craft", to:target, buy:cost, buyT:oldest, sell:sp, sellT:st, profit, roi,
+        kg:p.it.wt ? p.it.wt[p.tier - 2] || 0 : 0, cat:p.it.c,
+        craft:{lines, matCost, fee, rrr}});
+    }
+    if(!found.length) continue;
+    if(S.showAll) rows.push(...found);
+    else rows.push(found.reduce((x, y) => y.profit > x.profit ? y : x));
+  }
+  return {rows, missing};
+}
+function compute(){ return S.mode === "craft" ? computeCrafts() : computeFlips(); }
+
+/* ---------- Tonen ---------- */
+function columns(){
+  return [
+    {k:"name", l:"Item"}, {k:"route", l: S.mode === "craft" ? "Verkoop in" : "Route"},
+    {k:"buy", l: S.mode === "craft" ? "Kosten" : "Koop", num:true},
+    {k:"sell", l:"Verkoop", num:true}, {k:"profit", l:"Winst", num:true}, {k:"roi", l:"ROI", num:true},
+    {k:"vol", l:"Verk./dag", num:true, t: S.mode === "craft"
+      ? "Gemiddeld aantal verkochte stuks per dag in de verkoopplek (laatste 7 volle dagen). ? = nog niet opgehaald, – = geen data."
+      : "Gemiddeld aantal verkochte stuks per dag (laatste 7 volle dagen): koopstad / verkoopstad. ? = nog niet opgehaald, – = geen data. Hover voor details."},
+    {k:"pot", l:"Winst/dag", num:true, t:"Winst per stuk × het kleinste verkoopvolume van de route. Alleen zichtbaar als alle kanten bekend zijn."},
+    {k:"ppk", l:"Winst/kg", num:true, t:"Winst per stuk gedeeld door het gewicht van één stuk (uit de game-data). Hoe hoger, hoe meer winst per kg draagkracht."},
+    {k:"copy", l:"", nosort:true}
+  ];
+}
+function buildHead(){
+  const tr = $("thead"); tr.textContent = "";
+  for(const c of columns()){
+    const th = document.createElement("th");
+    th.textContent = c.l;
+    if(c.t) th.title = c.t;
+    if(c.num) th.className = "num";
+    if(!c.nosort){
+      th.addEventListener("click", () => {
+        sort = sort.k === c.k ? {k:c.k, dir:-sort.dir} : {k:c.k, dir:c.num ? -1 : 1};
+        render();
+      });
+      if(sort.k === c.k) th.setAttribute("aria-sort", sort.dir > 0 ? "ascending" : "descending");
+    }
+    tr.appendChild(th);
+  }
+}
+function sortKey(r, k){
+  switch(k){
+    case "name": return r.name.toLowerCase() + r.tier + r.ench;
+    case "route": return r.from + r.to;
+    case "vol": return r.vEff == null ? -1 : r.vEff;
+    case "pot": return r.pot == null ? -1 : r.pot;
+    case "ppk": return r.ppk == null ? -1 : r.ppk;
+    default: return r[k];
+  }
+}
+function sortRows(rows, k, dir){
+  return rows.sort((a, b) => {
+    const x = sortKey(a, k), y = sortKey(b, k);
+    return (x < y ? -1 : x > y ? 1 : 0) * dir;
+  });
+}
+function pipeline(){
+  const res = compute();
+  for(const r of res.rows){ attachVol(r); r.ppk = r.kg > 0 ? r.profit / r.kg : null; }
+  let kept = S.minVol > 0 ? res.rows.filter(r => r.vEff != null && r.vEff >= S.minVol) : res.rows;
+  if(S.mode === "routes" && !S.showAll){
+    const best = new Map();
+    const score = r => [r.pot == null ? -1 : r.pot, r.profit];
+    for(const r of kept){
+      const k = r.id + "|" + r.quality, cur = best.get(k);
+      if(!cur){ best.set(k, r); continue; }
+      const a = score(r), b = score(cur);
+      if(a[0] > b[0] || (a[0] === b[0] && a[1] > b[1])) best.set(k, r);
+    }
+    kept = [...best.values()];
+  }
+  return {all:res.rows, kept, missing:res.missing};
+}
+function fmtVol(v){
+  return v < 10 ? v.toLocaleString("nl-NL", {maximumFractionDigits:1}) : Math.round(v).toLocaleString("nl-NL");
+}
+function volTitle(v){
+  if(v.s === "na") return v.city + ": nog niet opgehaald";
+  if(v.s === "none") return v.city + ": geen history-data bekend";
+  return v.city + ": gemiddeld " + fmtVol(v.perDay) + " verkocht per dag (" + v.days + " van " + HIST_DAYS + " dagen met data)" +
+    (v.avgPrice ? ", gemiddelde prijs " + fmt(v.avgPrice) : "");
+}
+function volCell(r){
+  const td = document.createElement("td"); td.className = "num";
+  const sides = r.vA ? [r.vA, r.vB] : [r.vB];
+  sides.forEach((v, i) => {
+    if(i){ const s = document.createElement("span"); s.className = "vsep"; s.textContent = "/"; td.appendChild(s); }
+    const sp = document.createElement("span");
+    if(v.s === "ok"){ sp.textContent = fmtVol(v.perDay); sp.className = "vol" + (v.perDay < 3 ? " low" : v.perDay < 10 ? " mid" : ""); }
+    else{ sp.textContent = v.s === "none" ? "–" : "?"; sp.className = "vol na"; }
+    td.appendChild(sp);
+  });
+  td.title = sides.map(volTitle).join("\n");
+  return td;
+}
+function ageSpan(t){
+  const s = document.createElement("span");
+  s.className = "age " + ageClass(t);
+  s.textContent = fmtAge(t) + " oud";
+  return s;
+}
+async function copyText(text, btn){
+  let ok = false;
+  try{ await navigator.clipboard.writeText(text); ok = true; }catch(e){}
+  if(!ok){
+    try{
+      const ta = document.createElement("textarea");
+      ta.value = text; ta.style.position = "fixed"; ta.style.opacity = "0";
+      document.body.appendChild(ta); ta.select(); ok = document.execCommand("copy"); ta.remove();
+    }catch(e){}
+  }
+  const old = btn.textContent;
+  btn.textContent = ok ? "Gekopieerd" : "Mislukt";
+  setTimeout(() => { btn.textContent = old; }, 1200);
+}
+function detailRow(r){
+  const tr = document.createElement("tr"); tr.className = "detail";
+  const td = document.createElement("td"); td.colSpan = columns().length;
+  const box = document.createElement("div"); box.className = "recipe";
+  for(const l of r.craft.lines){
+    const d = document.createElement("div");
+    d.textContent = l.n + "× " + l.name + " · " + fmt(l.raw) + " per stuk (" + l.city + ", " + fmtAge(l.t) + " oud)" + (l.ret ? "" : " · geen RRR") + " → " + fmt(l.cost);
+    box.appendChild(d);
+  }
+  const foot = document.createElement("div"); foot.className = "foot";
+  foot.textContent = "Materialen " + fmt(r.craft.matCost) + " (RRR " + (r.craft.rrr * 100).toFixed(1).replace(".", ",") + "%)" +
+    (r.craft.fee ? " + stationkosten " + fmt(r.craft.fee) : "") + " = " + fmt(r.buy);
+  box.appendChild(foot);
+  td.appendChild(box); tr.appendChild(td);
+  return tr;
+}
+function render(){
+  buildHead();
+  const {all, kept: rows, missing} = pipeline();
+  missingCount = missing;
+  sortRows(rows, sort.k, sort.dir);
+  const shown = rows.slice(0, S.limit);
+  const tb = $("tbody"); tb.textContent = "";
+  for(const r of shown){
+    const rowKey = r.id + "|" + r.to;
+    const tr = document.createElement("tr");
+    const td1 = document.createElement("td");
+    const tag = document.createElement("span"); tag.className = "tier"; tag.textContent = "T" + r.tier + (r.ench ? "." + r.ench : "");
+    td1.appendChild(tag); td1.appendChild(document.createTextNode(r.name));
+    if(r.quality > 1){ const q = document.createElement("span"); q.className = "q"; q.textContent = QNAME[r.quality] || ("Q" + r.quality); td1.appendChild(q); }
+    const td2 = document.createElement("td");
+    if(S.mode === "craft"){
+      td2.textContent = r.to;
+    }else{
+      td2.appendChild(document.createTextNode(r.from));
+      const ar = document.createElement("span"); ar.className = "arrow"; ar.textContent = "→"; td2.appendChild(ar);
+      td2.appendChild(document.createTextNode(r.to));
+    }
+    const td3 = document.createElement("td"); td3.className = "num"; td3.textContent = fmt(r.buy); td3.appendChild(ageSpan(r.buyT));
+    const td4 = document.createElement("td"); td4.className = "num"; td4.textContent = fmt(r.sell); td4.appendChild(ageSpan(r.sellT));
+    const td5 = document.createElement("td"); td5.className = "num profit"; td5.textContent = "+" + fmt(r.profit);
+    const td6 = document.createElement("td"); td6.className = "num"; td6.textContent = r.roi.toFixed(1) + "%";
+    const tdV = volCell(r);
+    const tdP = document.createElement("td"); tdP.className = "num";
+    if(r.pot != null){ tdP.textContent = fmt(r.pot); tdP.title = "+" + fmt(r.profit) + " × " + fmtVol(r.vEff) + " per dag"; }
+    else{ tdP.textContent = "–"; tdP.className = "num vol na"; }
+    const tdK = document.createElement("td"); tdK.className = "num";
+    if(r.ppk != null){ tdK.textContent = fmt(r.ppk); tdK.title = fmt(r.profit) + " winst / " + String(r.kg).replace(".", ",") + " kg per stuk"; }
+    else{ tdK.textContent = "–"; tdK.className = "num vol na"; }
+    const td7 = document.createElement("td");
+    if(r.craft){
+      const rb = document.createElement("button"); rb.type = "button"; rb.className = "copy recipe-btn"; rb.textContent = "Recept";
+      let det = null;
+      const open = () => {
+        det = detailRow(r); tr.after(det); openDetails.add(rowKey);
+      };
+      rb.addEventListener("click", () => {
+        if(det){ det.remove(); det = null; openDetails.delete(rowKey); } else open();
+      });
+      td7.appendChild(rb);
+      tr.append(td1, td2, td3, td4, td5, td6, tdV, tdP, tdK, td7);
+      tb.appendChild(tr);
+      if(openDetails.has(rowKey)) open();
+    }else{
+      tr.append(td1, td2, td3, td4, td5, td6, tdV, tdP, tdK, td7);
+      tb.appendChild(tr);
+    }
+    const cb = document.createElement("button"); cb.type = "button"; cb.className = "copy"; cb.textContent = "Kopieer naam";
+    cb.addEventListener("click", () => copyText(r.name, cb));
+    td7.appendChild(cb);
+    const lb = document.createElement("button"); lb.type = "button"; lb.className = "logbtn"; lb.textContent = "Log";
+    lb.title = "Zet deze kans klaar in het logboek";
+    lb.addEventListener("click", () => logFromRow(r));
+    td7.appendChild(lb);
+  }
+  const has = shown.length > 0;
+  $("tbl").classList.toggle("hidden", !has);
+  const empty = $("empty");
+  empty.classList.toggle("hidden", has);
+  if(!has){
+    if(!store.size) empty.textContent = "Hier verschijnen de resultaten zodra de scan klaar is.";
+    else if(S.minVol > 0 && all.length) empty.textContent = "Geen rijen met minstens " + S.minVol + " verkocht per dag (of het volume is nog niet opgehaald). Klik op ‘Volume ophalen voor deze lijst’ of verlaag het minimum.";
+    else if(S.mode === "craft") empty.textContent = "Geen craft-kansen die aan je filters voldoen." + (missing ? " " + missing + " items zijn overgeslagen omdat materiaalprijzen ontbreken of te oud zijn." : "") + " Scan je na het wisselen van modus opnieuw? Craften haalt ook de materiaalprijzen op.";
+    else empty.textContent = "Geen flips die aan je filters voldoen. Probeer een hogere maximale data-leeftijd, een lagere min. winst of meer steden/tiers.";
+  }
+  const sum = $("sum"); sum.textContent = "";
+  if(store.size){
+    const b = document.createElement("b"); b.textContent = rows.length.toLocaleString("nl-NL") + (rows.length === 1 ? " kans" : " kansen");
+    const sm = document.createElement("small");
+    sm.textContent = "van " + store.size.toLocaleString("nl-NL") + " items met data" + (rows.length > shown.length ? " · top " + shown.length + " getoond" : "") +
+      (S.mode === "craft" && missing ? " · " + missing + " overgeslagen (materiaalprijs ontbreekt of is te oud)" : "") +
+      (lastScan ? " · laatste scan " + new Date(lastScan).toLocaleTimeString("nl-NL", {hour:"2-digit", minute:"2-digit"}) : "") +
+      (S.minVol > 0 ? " · min. " + S.minVol + " verkocht/dag" : "") +
+      " · belasting " + (S.premium ? "4% (premium)" : "8%") +
+      (S.mode === "craft" ? " · RRR " + (currentRrr() * 100).toFixed(1).replace(".", ",") + "%" : "");
+    sum.append(b, sm);
+  }else{
+    const b = document.createElement("b"); b.textContent = "Nog geen scan";
+    const sm = document.createElement("small"); sm.textContent = "Kies links je route en items en klik op “Scan starten”.";
+    sum.append(b, sm);
+  }
+}
+
+/* ---------- UI opbouwen ---------- */
+function makeChips(el, options, selected, onChange){
+  el.textContent = "";
+  for(const opt of options){
+    const b = document.createElement("button");
+    b.type = "button"; b.className = "chip"; b.textContent = opt.label;
+    if(opt.title) b.title = opt.title;
+    const sync = () => {
+      b.setAttribute("aria-pressed", selected.has(opt.value) ? "true" : "false");
+      b.disabled = !!(opt.disabled && opt.disabled());
+    };
+    b.addEventListener("click", () => {
+      if(b.disabled) return;
+      if(selected.has(opt.value)) selected.delete(opt.value); else selected.add(opt.value);
+      sync(); onChange();
+    });
+    sync(); el.appendChild(b);
+  }
+}
+function renderCatChips(){
+  makeChips($("cats"), CAT_LABELS.map(([v, l]) => ({value:v, label:l, title:CAT_TITLES[v], disabled:() => !catAllowed(v)})), S.cats, () => changed(true));
+}
+function renderRouteChips(){
+  const craft = S.mode === "craft";
+  $("buyLabel").textContent = craft ? "Materialen kopen in" : "Koop in";
+  $("sellLabel").textContent = craft ? "Verkopen aan" : "Verkoop in";
+  makeChips($("buyCities"), CITIES.map(c => ({value:c, label:c})), craft ? S.matCities : S.buyCities, () => changed(true));
+  const routes = S.mode === "routes";
+  makeChips($("sellCities"), (craft || routes ? [BM, ...CITIES] : CITIES).map(c => ({value:c, label:c})), craft ? S.craftSell : routes ? S.routeSell : S.sellCities, () => changed(true));
+}
+const HINTS = {
+  bm: "Black Market: je verkoopt direct aan de NPC in Caerleon, dus alleen verkoopbelasting.",
+  city: "Stad → stad werkt voor gear, ruwe grondstoffen en gerefinde materialen.",
+  routes: "Handelsroutes: alle koop- en verkoopplekken tegelijk (ook de Black Market), per item de route met de hoogste winst per dag (winst × kleinste dagvolume). Sorteer op Winst/dag of Winst/kg. Voor grondstoffen: zet Min. winst op 0–100.",
+  craft: "Craften: kosten = materialen (min wat je terugkrijgt) + stationkosten. Verkoop aan de Black Market is direct; in een stad kies je zelf. Alleen Normal-kwaliteit."
+};
+function applyMode(){
+  const m = S.mode;
+  $("modeBm").setAttribute("aria-pressed", m === "bm");
+  $("modeCity").setAttribute("aria-pressed", m === "city");
+  $("modeCraft").setAttribute("aria-pressed", m === "craft");
+  $("modeRoutes").setAttribute("aria-pressed", m === "routes");
+  $("sellCitiesWrap").classList.toggle("hidden", m === "bm");
+  $("sellMethodWrap").classList.toggle("hidden", m === "bm");
+  $("craftBox").classList.toggle("hidden", m !== "craft");
+  $("modeHint").textContent = HINTS[m];
+  $("buyMethodLabel").textContent = m === "craft" ? "Hoe koop je materialen?" : "Hoe koop je in?";
+  $("sellMethodLabel").textContent = m === "craft" ? "Hoe verkoop je in een stad?" : "Hoe verkoop je?";
+  $("maxBuyLabel").textContent = m === "craft" ? "Max. kosten per item" : "Max. aankoopprijs";
+  $("quality").disabled = m === "craft";
+  $("rrrCustomWrap").classList.toggle("hidden", S.rrr !== "custom");
+  renderCatChips();
+  renderRouteChips();
+}
+function changed(rescanEstimate){
+  saveSettings();
+  if(rescanEstimate) updateEstimate();
+  render();
+}
+function setMode(m){
+  if(m === "routes" && S.mode !== "routes") sort = {k:"pot", dir:-1};
+  else if(m !== "routes" && S.mode === "routes" && sort.k === "pot") sort = {k:"profit", dir:-1};
+  S.mode = m; applyMode(); changed(true);
+}
+function updateVolEst(){
+  const n = Math.ceil(S.volN / VOL_IDS_PER_REQ);
+  $("volEst").textContent = "Maximaal " + n + " extra verzoek" + (n === 1 ? "" : "en") + " (±" + Math.ceil(n * MIN_GAP_MS / 1000) + " s) per keer ophalen. Wat al opgehaald is, wordt 3 uur onthouden.";
+}
+function init(){
+  loadSettings();
+  makeChips($("tiers"), [2,3,4,5,6,7,8].map(t => ({value:t, label:"T" + t})), S.tiers, () => changed(true));
+  makeChips($("ench"), [0,1,2,3,4].map(e => ({value:e, label:"." + e})), S.ench, () => changed(true));
+
+  $("server").value = S.server; $("premium").checked = S.premium;
+  $("buyMethod").value = S.buyMethod; $("sellMethod").value = S.sellMethod; $("quality").value = S.quality;
+  $("maxAge").value = String(S.maxAge); $("minProfit").value = S.minProfit; $("minRoi").value = S.minRoi;
+  $("maxRoi").value = S.maxRoi; $("maxBuy").value = S.maxBuy || ""; $("q").value = S.q;
+  $("showAll").checked = S.showAll; $("limit").value = String(S.limit); $("art").value = S.art;
+  $("volAuto").checked = S.volAuto; $("minVol").value = S.minVol || "";
+  $("rrr").value = S.rrr; $("rrrCustom").value = S.rrrCustom; $("stationFee").value = S.stationFee || "";
+  applyMode();
+
+  $("modeBm").addEventListener("click", () => setMode("bm"));
+  $("modeCity").addEventListener("click", () => setMode("city"));
+  $("modeCraft").addEventListener("click", () => setMode("craft"));
+  $("modeRoutes").addEventListener("click", () => setMode("routes"));
+  $("volN").value = String(S.volN); updateVolEst();
+  $("volN").addEventListener("change", e => { S.volN = +e.target.value; updateVolEst(); changed(); });
+  $("server").addEventListener("change", e => { S.server = e.target.value; volStore.clear(); changed(true); });
+  $("volAuto").addEventListener("change", e => { S.volAuto = e.target.checked; changed(); });
+  $("volBtn").addEventListener("click", () => fetchVolumes("", ""));
+  $("premium").addEventListener("change", e => { S.premium = e.target.checked; changed(); });
+  $("buyMethod").addEventListener("change", e => { S.buyMethod = e.target.value; changed(); });
+  $("sellMethod").addEventListener("change", e => { S.sellMethod = e.target.value; changed(); });
+  $("quality").addEventListener("change", e => { S.quality = e.target.value; changed(true); });
+  $("maxAge").addEventListener("change", e => { S.maxAge = +e.target.value; changed(); });
+  $("rrr").addEventListener("change", e => { S.rrr = e.target.value; $("rrrCustomWrap").classList.toggle("hidden", S.rrr !== "custom"); changed(); });
+  for(const [id, key] of [["minProfit","minProfit"],["minRoi","minRoi"],["maxRoi","maxRoi"],["maxBuy","maxBuy"],["rrrCustom","rrrCustom"],["stationFee","stationFee"],["minVol","minVol"]]){
+    $(id).addEventListener("input", e => { S[key] = Math.max(0, Number(e.target.value) || 0); changed(); });
+  }
+  $("q").addEventListener("input", e => { S.q = e.target.value; changed(); });
+  $("showAll").addEventListener("change", e => { S.showAll = e.target.checked; changed(); });
+  $("limit").addEventListener("change", e => { S.limit = +e.target.value; changed(); });
+  $("art").addEventListener("change", e => { S.art = e.target.value; changed(true); });
+  $("scanBtn").addEventListener("click", scan);
+  $("stopBtn").addEventListener("click", () => { if(ctrl) ctrl.abort(); });
+  $("testBtn").addEventListener("click", testConnection);
+  $("pasteBtn").addEventListener("click", pasteJson);
+
+  updateEstimate();
+  render();
+}
+
+/* =================================================================
+   Site: tabs, hosting en downloadversie
+   ================================================================= */
+const IN_CLAUDE = !!(window.claude && typeof window.claude.use === "function");
+const VIEWS = {markt:"viewMarkt", logboek:"viewLog"};
+let currentView = "markt";
+
+function showView(v){
+  if(!VIEWS[v]) v = "markt";
+  currentView = v;
+  for(const [k, id] of Object.entries(VIEWS)) $(id).classList.toggle("hidden", k !== v);
+  for(const b of document.querySelectorAll(".tabs button")) b.setAttribute("aria-selected", b.dataset.view === v ? "true" : "false");
+  $("hostBanner").classList.toggle("hidden", !(IN_CLAUDE && v === "markt"));
+  if(v === "logboek") renderLog();
+}
+function viewFromHash(){ const h = (location.hash || "").replace(/^#/, ""); return VIEWS[h] ? h : "markt"; }
+
+async function saveFile(filename, text, mime, msgEl){
+  const say = (m, cls) => { if(msgEl){ msgEl.textContent = m; msgEl.className = msgEl.className.replace(/\s*\b(err|ok)\b/g, "") + (cls ? " " + cls : ""); } };
+  if(IN_CLAUDE){
+    let dl = null;
+    try{ dl = await window.claude.use("downloads"); }catch(e){}
+    if(!dl){ say("Downloaden kan in deze weergave niet. Gebruik ‘kopiëren’ of vraag Claude om het bestand.", "err"); return false; }
+    try{ await dl.save({filename, data:text}); say("Bestand aangeboden: " + filename + ".", "ok"); return true; }
+    catch(e){ say("Download geannuleerd of geweigerd.", "err"); return false; }
+  }
+  try{
+    const url = URL.createObjectURL(new Blob([text], {type:mime}));
+    const a = document.createElement("a"); a.href = url; a.download = filename;
+    document.body.appendChild(a); a.click(); a.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 4000);
+    say("Opgeslagen als " + filename + ".", "ok");
+    return true;
+  }catch(e){ say("Opslaan mislukt.", "err"); return false; }
+}
+async function downloadSelf(){
+  let html = null;
+  try{
+    const res = await fetch(location.href.split("#")[0]);
+    if(res.ok){ const t = await res.text(); if(t.includes("__SITE_MARKER__")) html = t; }
+  }catch(e){}
+  if(!html) html = PRISTINE;
+  await saveFile("albion-tools.html", html, "text/html", $("dlSelfMsg"));
+}
+
+/* =================================================================
+   Logboek
+   ================================================================= */
+const LOG_KEY = "albionLogboek.v1";
+const WIN_CATS = ["Flip → Black Market", "Flip stad → stad", "Handelsroute", "Craften", "Refinen", "Transport", "Gathering", "Overig"];
+const EXP_CATS = ["Gear / set", "Verlies (gank)", "Premium", "Reparatie", "Leren / destiny board", "Mount", "Belasting en fees", "Overig"];
+const PERIODS = [["all", "Alles"], ["30", "30 dagen"], ["7", "7 dagen"], ["1", "Vandaag"]];
+const L = {entries:[], start:7000000, goal:50000000, type:"win", period:"all", backend:"local",
+  db:null, months:new Map(), loaded:false, readOnly:false, chain:Promise.resolve()};
+
+function parseSilver(v){
+  const t = String(v == null ? "" : v).trim().toLowerCase().replace(/\s+|silver/g, "").replace(/^\+/, "");
+  if(!t) return null;
+  const m = /^(-?)([\d.,]+)([kmb]?)$/.exec(t);
+  if(!m) return null;
+  let num = m[2];
+  const mult = {"":1, k:1e3, m:1e6, b:1e9}[m[3]];
+  if(m[3]){
+    num = num.replace(/,/g, ".");
+    if((num.match(/\./g) || []).length > 1) return null;
+  }else{
+    num = num.replace(/\./g, "").replace(",", ".");
+  }
+  const n = parseFloat(num);
+  if(!Number.isFinite(n)) return null;
+  return Math.round((m[1] ? -1 : 1) * n * mult);
+}
+function fmtS(n){
+  const a = Math.abs(n), sg = n < 0 ? "−" : "";
+  if(a >= 1e9) return sg + (a / 1e9).toLocaleString("nl-NL", {maximumFractionDigits:2}) + "b";
+  if(a >= 1e6) return sg + (a / 1e6).toLocaleString("nl-NL", {maximumFractionDigits:1}) + "m";
+  if(a >= 1e3) return sg + Math.round(a / 1e3).toLocaleString("nl-NL") + "k";
+  return sg + Math.round(a);
+}
+const signed = n => (n > 0 ? "+" : n < 0 ? "−" : "") + fmt(Math.abs(n));
+const netOf = e => e.type === "exp" ? -e.amount : e.amount;
+const monthOf = t => { const d = new Date(t); return d.getFullYear() + "-" + String(d.getMonth() + 1).padStart(2, "0"); };
+const dayStart = t => { const d = new Date(t); d.setHours(0, 0, 0, 0); return d.getTime(); };
+const fmtDate = (t, withTime) => new Date(t).toLocaleString("nl-NL", withTime
+  ? {day:"numeric", month:"short", hour:"2-digit", minute:"2-digit"} : {day:"numeric", month:"short"});
+function newId(){ return Date.now().toString(36) + Math.random().toString(36).slice(2, 8); }
+function cleanEntry(x){
+  if(!x || typeof x !== "object") return null;
+  const t = Number(x.t), amount = Number(x.amount), qty = Math.max(1, Math.round(Number(x.qty) || 1));
+  if(!Number.isFinite(t) || !Number.isFinite(amount)) return null;
+  const type = x.type === "exp" ? "exp" : "win";
+  return {id:String(x.id || newId()).replace(/[^\w-]/g, "").slice(0, 40) || newId(), t, type,
+    cat:String(x.cat || "Overig").slice(0, 60), note:String(x.note || "").slice(0, 120), qty, amount:Math.round(amount)};
+}
+function setEntriesFromMonths(){
+  L.entries = [...L.months.values()].flat().sort((a, b) => a.t - b.t);
+}
+function lgStatus(msg, cls){ const e = $("lgStatus"); e.textContent = msg; e.className = "status" + (cls ? " " + cls : ""); }
+function syncNote(msg, err){ const e = $("lgSync"); e.textContent = msg; e.className = "syncnote" + (err ? " err" : ""); }
+
+/* ---------- opslag ---------- */
+function saveLocal(){
+  try{ localStorage.setItem(LOG_KEY, JSON.stringify({entries:L.entries, start:L.start, goal:L.goal})); }catch(e){}
+}
+function loadLocal(){
+  try{
+    const j = JSON.parse(localStorage.getItem(LOG_KEY) || "null");
+    if(!j) return;
+    L.entries = (Array.isArray(j.entries) ? j.entries : []).map(cleanEntry).filter(Boolean).sort((a, b) => a.t - b.t);
+    if(Number.isFinite(j.start)) L.start = j.start;
+    if(Number.isFinite(j.goal) && j.goal > 0) L.goal = j.goal;
+  }catch(e){}
+}
+function queueWrite(fn){
+  L.chain = L.chain.then(fn).catch(e => {
+    const code = e && e.code ? e.code : "fout";
+    if(code === "invalid_argument") L.readOnly = true;
+    lgStatus(code === "quota_exceeded" ? "De online opslag is vol. Exporteer een back-up en vraag Claude om op te schonen."
+      : "Opslaan mislukt (" + code + "). Exporteer voor de zekerheid een back-up.", "err");
+  });
+  return L.chain;
+}
+function persistMonths(monthKeys){
+  if(L.backend !== "db"){ saveLocal(); return; }
+  for(const m of new Set(monthKeys)){
+    const list = (L.months.get(m) || []).slice();
+    queueWrite(() => list.length ? L.db.doc("logmonths/" + m).set({entries:list}) : L.db.doc("logmonths/" + m).delete());
+  }
+}
+let settingsTimer = null;
+function persistSettings(){
+  if(L.backend !== "db"){ saveLocal(); return; }
+  clearTimeout(settingsTimer);
+  settingsTimer = setTimeout(() => queueWrite(() => L.db.doc("meta/settings").set({start:L.start, goal:L.goal})), 700);
+}
+function addEntries(list){
+  const touched = [];
+  for(const e of list){
+    const m = monthOf(e.t);
+    if(!L.months.has(m)) L.months.set(m, []);
+    L.months.get(m).push(e);
+    touched.push(m);
+  }
+  if(L.backend === "db") setEntriesFromMonths(); else { L.entries.push(...list); L.entries.sort((a, b) => a.t - b.t); }
+  persistMonths(touched);
+  renderLog();
+}
+function removeEntry(id){
+  const e = L.entries.find(x => x.id === id);
+  if(!e) return;
+  const m = monthOf(e.t);
+  if(L.months.has(m)) L.months.set(m, L.months.get(m).filter(x => x.id !== id));
+  L.entries = L.entries.filter(x => x.id !== id);
+  persistMonths([m]);
+  renderLog();
+}
+function rebuildMonthsFromEntries(){
+  L.months = new Map();
+  for(const e of L.entries){ const m = monthOf(e.t); if(!L.months.has(m)) L.months.set(m, []); L.months.get(m).push(e); }
+}
+
+async function connectDb(){
+  if(!IN_CLAUDE) return;
+  let db = null;
+  try{ db = await window.claude.use("db"); }catch(e){}
+  if(!db){ syncNote("Opslag: alleen in deze browser (online opslag niet beschikbaar). Exporteer af en toe een back-up.", true); return; }
+  L.db = db; L.backend = "db"; L.loaded = false;
+  L.entries = []; L.months = new Map();
+  syncNote("Online opslag laden…");
+  renderLog();
+  const timer = setTimeout(() => { if(!L.loaded) syncNote("De online opslag reageert nog niet; wat je ziet kan verouderd zijn.", true); }, 10000);
+  db.collection("logmonths").onSnapshot(snap => {
+    const months = new Map();
+    for(const d of snap.docs){
+      const data = d.data() || {};
+      months.set(d.id, (Array.isArray(data.entries) ? data.entries : []).map(cleanEntry).filter(Boolean));
+    }
+    L.months = months; setEntriesFromMonths();
+    if(!snap.metadata.fromCache){ L.loaded = true; clearTimeout(timer); syncNote("Opslag: online in deze site (werkt op elk apparaat waar je ingelogd bent)."); }
+    renderLog();
+  }, err => { clearTimeout(timer); syncNote("Online opslag niet bereikbaar (" + (err && err.code) + "). Exporteer je gegevens als back-up.", true); });
+  db.doc("meta/settings").onSnapshot(snap => {
+    if(snap.exists){
+      const d = snap.data() || {};
+      if(Number.isFinite(d.start)) L.start = d.start;
+      if(Number.isFinite(d.goal) && d.goal > 0) L.goal = d.goal;
+      if(document.activeElement !== $("lgStart")) $("lgStart").value = fmt(L.start);
+      if(document.activeElement !== $("lgGoal")) $("lgGoal").value = fmt(L.goal);
+      renderLog();
+    }
+  }, () => {});
+}
+
+/* ---------- formulier ---------- */
+function fillCats(){
+  const sel = $("lgCat"), cur = sel.value;
+  sel.textContent = "";
+  for(const c of (L.type === "exp" ? EXP_CATS : WIN_CATS)){ const o = document.createElement("option"); o.textContent = c; sel.appendChild(o); }
+  if([...sel.options].some(o => o.value === cur)) sel.value = cur;
+}
+function setLogType(t){
+  L.type = t;
+  $("lgTypeWin").setAttribute("aria-pressed", t === "win"); $("lgTypeExp").setAttribute("aria-pressed", t === "exp");
+  $("lgAmountLabel").textContent = t === "exp" ? "Uitgave per stuk (silver)" : "Winst per stuk (silver)";
+  fillCats(); updatePreview();
+}
+function localInputValue(t){
+  const d = new Date(t); d.setMinutes(d.getMinutes() - d.getTimezoneOffset());
+  return d.toISOString().slice(0, 16);
+}
+function updatePreview(){
+  const a = parseSilver($("lgAmount").value), q = Math.max(1, Math.round(Number($("lgQty").value) || 1));
+  const p = $("lgPreview");
+  if($("lgAmount").value.trim() === ""){ p.textContent = ""; return; }
+  if(a == null){ p.textContent = "Geen geldig bedrag. Voorbeelden: 25000, 250k, 1,2m"; return; }
+  const total = a * q * (L.type === "exp" ? -1 : 1);
+  p.textContent = "Totaal: " + signed(total) + " silver" + (q > 1 ? " (" + q + " × " + fmt(a) + ")" : "");
+}
+function addFromForm(){
+  if(L.readOnly){ lgStatus("Je kunt in deze opslag niet schrijven.", "err"); return; }
+  const a = parseSilver($("lgAmount").value);
+  if(a == null){ lgStatus("Vul een geldig bedrag in.", "err"); $("lgAmount").focus(); return; }
+  if(L.type === "exp" && a < 0){ lgStatus("Een uitgave is een positief bedrag. Kies ‘Winst’ voor een negatieve winst.", "err"); return; }
+  const qty = Math.max(1, Math.round(Number($("lgQty").value) || 1));
+  const dv = $("lgDate").value, t = dv ? new Date(dv).getTime() : Date.now();
+  const e = cleanEntry({id:newId(), t:Number.isFinite(t) ? t : Date.now(), type:L.type, cat:$("lgCat").value, note:$("lgNote").value.trim(), qty, amount:a * qty});
+  addEntries([e]);
+  lgStatus("Toegevoegd: " + signed(netOf(e)) + " silver (" + e.cat + ").", "ok");
+  $("lgAmount").value = ""; $("lgNote").value = ""; $("lgQty").value = "1"; $("lgDate").value = localInputValue(Date.now());
+  updatePreview();
+}
+function logFromRow(r){
+  location.hash = "logboek";
+  showView("logboek");
+  setLogType("win");
+  const cat = S.mode === "bm" ? "Flip → Black Market" : S.mode === "city" ? "Flip stad → stad" : S.mode === "routes" ? "Handelsroute"
+    : (r.cat === "m" ? "Refinen" : "Craften");
+  $("lgCat").value = cat;
+  $("lgNote").value = ("T" + r.tier + (r.ench ? "." + r.ench : "") + " " + r.name + " · " + (r.from === "Craft" ? "craft → " + r.to : r.from + " → " + r.to)).slice(0, 120);
+  $("lgAmount").value = String(Math.round(r.profit));
+  $("lgQty").value = "1";
+  $("lgDate").value = localInputValue(Date.now());
+  updatePreview();
+  lgStatus("Ingevuld vanuit Markt (winst per stuk volgens de scan). Pas aantal en bedrag aan naar wat je echt verdiende en klik Toevoegen.");
+  $("lgQty").focus();
+}
+
+/* ---------- export / import ---------- */
+function exportJson(){
+  const text = JSON.stringify({app:"albion-tools-logboek", version:1, exported:new Date().toISOString(), start:L.start, goal:L.goal, entries:L.entries}, null, 2);
+  saveFile("albion-logboek-" + new Date().toISOString().slice(0, 10) + ".json", text, "application/json", $("lgIoMsg"));
+}
+function exportCsv(){
+  const q = v => '"' + String(v).replace(/"/g, '""') + '"';
+  const lines = ["Datum;Soort;Actie;Omschrijving;Aantal;Bedrag"];
+  for(const e of L.entries) lines.push([q(new Date(e.t).toLocaleString("nl-NL")), e.type === "exp" ? "Uitgave" : "Winst", q(e.cat), q(e.note), e.qty, netOf(e)].join(";"));
+  saveFile("albion-logboek-" + new Date().toISOString().slice(0, 10) + ".csv", "﻿" + lines.join("\r\n"), "text/csv", $("lgIoMsg"));
+}
+async function importJson(file){
+  const msg = $("lgIoMsg");
+  try{
+    const j = JSON.parse(await file.text());
+    const arr = Array.isArray(j) ? j : (j && Array.isArray(j.entries) ? j.entries : null);
+    if(!arr) throw new Error("geen regels");
+    const wasEmpty = !L.entries.length;
+    const have = new Set(L.entries.map(e => e.id));
+    const add = arr.map(cleanEntry).filter(e => e && !have.has(e.id));
+    if(add.length) addEntries(add);
+    if(!Array.isArray(j)){
+      let ch = false;
+      if(Number.isFinite(j.start) && wasEmpty){ L.start = j.start; ch = true; }
+      if(Number.isFinite(j.goal) && j.goal > 0 && wasEmpty){ L.goal = j.goal; ch = true; }
+      if(ch){ $("lgStart").value = fmt(L.start); $("lgGoal").value = fmt(L.goal); persistSettings(); renderLog(); }
+    }
+    msg.textContent = add.length + " regel" + (add.length === 1 ? "" : "s") + " geïmporteerd" + (arr.length - add.length ? " (" + (arr.length - add.length) + " stonden er al in)" : "") + ".";
+    msg.className = "est ok";
+  }catch(e){ msg.textContent = "Importeren mislukt: dit is geen logboek-export."; msg.className = "est err"; }
+}
+
+/* ---------- grafieken (inline SVG) ---------- */
+const SVGNS = "http://www.w3.org/2000/svg";
+function sv(tag, attrs, parent){
+  const e = document.createElementNS(SVGNS, tag);
+  for(const k in attrs) e.setAttribute(k, attrs[k]);
+  if(parent) parent.appendChild(e);
+  return e;
+}
+function svText(parent, x, y, text, attrs){
+  const t = sv("text", Object.assign({x, y, style:"fill:var(--muted);font-size:11px"}, attrs || {}), parent);
+  t.textContent = text;
+  return t;
+}
+function niceTicks(min, max, n){
+  if(min === max){ const pad = Math.abs(min) * 0.1 || 1; min -= pad; max += pad; }
+  const step0 = (max - min) / n, mag = Math.pow(10, Math.floor(Math.log10(step0))), f = step0 / mag;
+  const step = (f <= 1 ? 1 : f <= 2 ? 2 : f <= 5 ? 5 : 10) * mag;
+  const out = [];
+  for(let v = Math.floor(min / step) * step; v <= Math.ceil(max / step) * step + step / 2; v += step) out.push(+v.toPrecision(12));
+  return out;
+}
+function chartFrame(box, h){
+  box.textContent = "";
+  const w = Math.max(280, Math.floor(box.clientWidth || 600));
+  const svg = sv("svg", {viewBox:"0 0 " + w + " " + h, width:w, height:h});
+  box.appendChild(svg);
+  const tip = document.createElement("div"); tip.className = "tip"; box.appendChild(tip);
+  return {svg, tip, w, h};
+}
+function chartEmpty(box, text){
+  box.textContent = "";
+  const d = document.createElement("div"); d.className = "empty"; d.style.padding = "30px 10px"; d.textContent = text;
+  box.appendChild(d);
+}
+function showTip(tip, box, x, y, lines){
+  tip.textContent = "";
+  for(const l of lines){
+    const d = document.createElement(l.strong ? "b" : "div");
+    if(l.color){ d.className = "row"; const i = document.createElement("i"); i.style.background = l.color; d.appendChild(i); d.appendChild(document.createTextNode(l.text)); }
+    else d.textContent = l.text;
+    tip.appendChild(d);
+  }
+  tip.style.display = "block";
+  const bw = box.clientWidth, tw = tip.offsetWidth;
+  tip.style.left = Math.min(Math.max(0, x + 12), bw - tw) + "px";
+  tip.style.top = Math.max(0, y - 10) + "px";
+}
+function gridY(svg, ticks, Y, m, w){
+  for(const v of ticks){
+    sv("line", {x1:m.l, x2:w - m.r, y1:Y(v), y2:Y(v), style:"stroke:" + (v === 0 ? "#3a4354" : "#232a37") + ";stroke-width:1"}, svg);
+    svText(svg, m.l - 6, Y(v) + 4, fmtS(v), {"text-anchor":"end"});
+  }
+}
+
+function drawLine(box, pts){
+  if(!pts.length){ chartEmpty(box, "Nog geen regels in deze periode."); return; }
+  const {svg, tip, w, h} = chartFrame(box, 230);
+  const m = {l:56, r:16, t:16, b:26};
+  const span = pts[pts.length - 1].t - pts[0].t, pad = Math.max(span * 0.04, 30 * 60e3);
+  const t0 = pts[0].t - (span < 3600e3 ? pad : 0), t1 = pts[pts.length - 1].t + pad;
+  const vals = pts.map(p => p.v);
+  const ticks = niceTicks(Math.min(...vals), Math.max(...vals), 4);
+  const y0 = ticks[0], y1 = ticks[ticks.length - 1];
+  const X = t => m.l + (t - t0) / (t1 - t0) * (w - m.l - m.r);
+  const Y = v => m.t + (1 - (v - y0) / (y1 - y0 || 1)) * (h - m.t - m.b);
+  gridY(svg, ticks, Y, m, w);
+  for(let i = 0; i <= 3; i++){
+    const t = t0 + i * (t1 - t0) / 3;
+    svText(svg, X(t), h - 8, fmtDate(t, t1 - t0 < 2 * 86400e3), {"text-anchor":i === 0 ? "start" : i === 3 ? "end" : "middle"});
+  }
+  const d = pts.map((p, i) => (i ? "L" : "M") + X(p.t).toFixed(1) + " " + Y(p.v).toFixed(1)).join(" ");
+  sv("path", {d, style:"fill:none;stroke:var(--s1);stroke-width:2;stroke-linejoin:round;stroke-linecap:round"}, svg);
+  const last = pts[pts.length - 1];
+  sv("circle", {cx:X(last.t), cy:Y(last.v), r:4, style:"fill:var(--s1);stroke:var(--panel);stroke-width:2"}, svg);
+  const nearLeft = X(last.t) < m.l + 60;
+  svText(svg, X(last.t) + (nearLeft ? 8 : -6), Y(last.v) - 9, fmtS(last.v), {"text-anchor":nearLeft ? "start" : "end", style:"fill:var(--text);font-size:12px;font-weight:600"});
+  const cross = sv("line", {y1:m.t, y2:h - m.b, style:"stroke:#5b6577;stroke-width:1;display:none"}, svg);
+  const dot = sv("circle", {r:4, style:"fill:var(--s1);stroke:var(--panel);stroke-width:2;display:none"}, svg);
+  const hit = sv("rect", {x:m.l, y:0, width:w - m.l - m.r, height:h, style:"fill:transparent"}, svg);
+  const move = ev => {
+    const r = svg.getBoundingClientRect(), x = (ev.clientX - r.left) * (w / r.width);
+    const t = t0 + (x - m.l) / (w - m.l - m.r) * (t1 - t0);
+    let best = pts[0];
+    for(const p of pts) if(Math.abs(p.t - t) < Math.abs(best.t - t)) best = p;
+    const px = X(best.t), py = Y(best.v);
+    cross.setAttribute("x1", px); cross.setAttribute("x2", px); cross.style.display = "";
+    dot.setAttribute("cx", px); dot.setAttribute("cy", py); dot.style.display = "";
+    const lines = [{text:fmt(best.v) + " silver", strong:true}, {text:fmtDate(best.t, true)}];
+    if(best.label) lines.push({text:best.label});
+    showTip(tip, box, px * (r.width / w), py * (r.height / h), lines);
+  };
+  hit.addEventListener("pointermove", move);
+  hit.addEventListener("pointerleave", () => { cross.style.display = "none"; dot.style.display = "none"; tip.style.display = "none"; });
+}
+
+function drawBars(box, buckets, weekly){
+  if(!buckets.length || buckets.every(b => !b.win && !b.exp)){ chartEmpty(box, "Nog geen winst of uitgaven in deze periode."); return; }
+  const {svg, tip, w, h} = chartFrame(box, 230);
+  const m = {l:56, r:10, t:12, b:26};
+  const maxW = Math.max(0, ...buckets.map(b => b.win)), maxE = Math.max(0, ...buckets.map(b => b.exp));
+  const ticks = niceTicks(-maxE, maxW, 4);
+  const y0 = Math.min(ticks[0], 0), y1 = Math.max(ticks[ticks.length - 1], 0);
+  const Y = v => m.t + (1 - (v - y0) / (y1 - y0 || 1)) * (h - m.t - m.b);
+  gridY(svg, ticks, Y, m, w);
+  const band = (w - m.l - m.r) / buckets.length, bw = Math.max(2, Math.min(22, band * 0.7));
+  const step = Math.max(1, Math.ceil(buckets.length / 6));
+  buckets.forEach((b, i) => {
+    const cx = m.l + band * (i + 0.5);
+    if(b.win > 0) sv("rect", {x:cx - bw / 2, y:Y(b.win), width:bw, height:Math.max(1, Y(0) - Y(b.win) - 1), rx:Math.min(3, bw / 3), style:"fill:var(--s1)"}, svg);
+    if(b.exp > 0) sv("rect", {x:cx - bw / 2, y:Y(0) + 1, width:bw, height:Math.max(1, Y(-b.exp) - Y(0) - 1), rx:Math.min(3, bw / 3), style:"fill:var(--s2)"}, svg);
+    if(i % step === 0) svText(svg, cx, h - 8, (weekly ? "wk " : "") + fmtDate(b.t), {"text-anchor":"middle"});
+    const hit = sv("rect", {x:m.l + band * i, y:m.t, width:band, height:h - m.t - m.b, style:"fill:transparent"}, svg);
+    const hl = sv("rect", {x:m.l + band * i, y:m.t, width:band, height:h - m.t - m.b, style:"fill:rgba(255,255,255,.04);display:none"}, svg);
+    svg.insertBefore(hl, svg.firstChild);
+    hit.addEventListener("pointermove", ev => {
+      const r = svg.getBoundingClientRect();
+      hl.style.display = "";
+      showTip(tip, box, cx * (r.width / w), (ev.clientY - r.top), [
+        {text:signed(b.win - b.exp) + " netto", strong:true},
+        {text:(weekly ? "Week van " : "") + fmtDate(b.t)},
+        {text:"Winst " + fmt(b.win), color:"var(--s1)"},
+        {text:"Uitgaven " + fmt(b.exp), color:"var(--s2)"}]);
+    });
+    hit.addEventListener("pointerleave", () => { hl.style.display = "none"; tip.style.display = "none"; });
+  });
+}
+
+function drawCats(box, cats){
+  if(!cats.length){ chartEmpty(box, "Nog geen regels in deze periode."); return; }
+  const rowH = 28, m = {l:150, r:64, t:6, b:6};
+  const {svg, tip, w, h} = chartFrame(box, m.t + m.b + rowH * cats.length);
+  const lo = Math.min(0, ...cats.map(c => c.net)), hi = Math.max(0, ...cats.map(c => c.net));
+  const X = v => m.l + (v - lo) / ((hi - lo) || 1) * (w - m.l - m.r);
+  sv("line", {x1:X(0), x2:X(0), y1:m.t, y2:h - m.b, style:"stroke:#3a4354;stroke-width:1"}, svg);
+  cats.forEach((c, i) => {
+    const y = m.t + i * rowH, bh = 14, by = y + (rowH - bh) / 2;
+    svText(svg, 0, y + rowH / 2 + 4, c.name.length > 22 ? c.name.slice(0, 21) + "…" : c.name, {style:"fill:var(--text);font-size:12px"});
+    const x0 = X(Math.min(0, c.net)), x1 = X(Math.max(0, c.net));
+    sv("rect", {x:x0, y:by, width:Math.max(2, x1 - x0), height:bh, rx:3, style:"fill:" + (c.net >= 0 ? "var(--s1)" : "var(--s2)")}, svg);
+    svText(svg, Math.max(x1, X(0)) + 6, y + rowH / 2 + 4, (c.net < 0 ? "−" : "+") + fmtS(Math.abs(c.net)), {style:"fill:var(--text);font-size:12px"});
+    const hit = sv("rect", {x:0, y, width:w, height:rowH, style:"fill:transparent"}, svg);
+    hit.addEventListener("pointermove", ev => {
+      const r = svg.getBoundingClientRect();
+      showTip(tip, box, (ev.clientX - r.left), (y + rowH) * (r.height / h), [
+        {text:signed(c.net) + " silver", strong:true}, {text:c.name + " · " + c.n + " regel" + (c.n === 1 ? "" : "s")}]);
+    });
+    hit.addEventListener("pointerleave", () => { tip.style.display = "none"; });
+  });
+}
+
+/* ---------- logboek tekenen ---------- */
+function periodCutoff(){
+  if(L.period === "all") return -Infinity;
+  const days = +L.period;
+  return dayStart(Date.now()) - (days - 1) * 86400e3;
+}
+function tile(parent, k, v, s, big, prog){
+  const d = document.createElement("div"); d.className = "tile" + (big ? " big" : "");
+  const a = document.createElement("div"); a.className = "k"; a.textContent = k;
+  const b = document.createElement("div"); b.className = "v"; b.textContent = v;
+  d.append(a, b);
+  if(prog != null){ const p = document.createElement("div"); p.className = "prog"; const i = document.createElement("i"); i.style.width = Math.max(0, Math.min(100, prog)) + "%"; p.appendChild(i); d.appendChild(p); }
+  if(s){ const c = document.createElement("div"); c.className = "s"; c.textContent = s; d.appendChild(c); }
+  parent.appendChild(d);
+}
+function renderLog(){
+  if(currentView !== "logboek") return;
+  const cut = periodCutoff();
+  const all = L.entries;
+  const inP = all.filter(e => e.t >= cut);
+  const netAll = all.reduce((s, e) => s + netOf(e), 0);
+  const worth = L.start + netAll;
+  const win = inP.reduce((s, e) => s + (netOf(e) > 0 ? netOf(e) : 0), 0);
+  const exp = inP.reduce((s, e) => s + (netOf(e) < 0 ? -netOf(e) : 0), 0);
+  const nWin = inP.filter(e => e.type === "win").length;
+
+  for(const b of document.querySelectorAll("#lgPeriods button")) b.setAttribute("aria-pressed", b.dataset.p === L.period ? "true" : "false");
+  const tiles = $("lgTiles"); tiles.textContent = "";
+  const pct = L.goal > 0 ? worth / L.goal * 100 : 0;
+  tile(tiles, "Vermogen (start + netto, alles)", fmtS(worth),
+    worth >= L.goal ? "Doel van " + fmtS(L.goal) + " gehaald!" : pct.toFixed(1).replace(".", ",") + "% van " + fmtS(L.goal) + " · nog " + fmtS(L.goal - worth), true, pct);
+  tile(tiles, "Netto in periode", signed(win - exp).replace(/^\+/, "+"), inP.length + " regel" + (inP.length === 1 ? "" : "s"));
+  tile(tiles, "Winst in periode", fmtS(win), nWin ? "gem. " + fmtS(inP.filter(e => e.type === "win").reduce((s, e) => s + e.amount, 0) / nWin) + " per actie" : "nog geen acties");
+  tile(tiles, "Uitgaven in periode", fmtS(exp), exp && win ? Math.round(exp / win * 100) + "% van de winst" : "");
+
+  // vermogenslijn: beginwaarde = vermogen vóór de periode
+  const before = all.filter(e => e.t < cut).reduce((s, e) => s + netOf(e), 0);
+  let run = L.start + before;
+  const pts = [];
+  if(inP.length){
+    pts.push({t:Number.isFinite(cut) ? Math.min(cut, inP[0].t) : inP[0].t - 60e3, v:run, label:"Begin van de periode"});
+    for(const e of inP){ run += netOf(e); pts.push({t:e.t, v:run, label:(netOf(e) >= 0 ? "+" : "−") + fmtS(Math.abs(netOf(e))) + " · " + e.cat + (e.note ? " · " + e.note : "")}); }
+  }
+  drawLine($("chLine"), pts);
+
+  // per dag (of per week bij lange periodes)
+  const buckets = [];
+  if(inP.length){
+    const first = dayStart(Number.isFinite(cut) ? cut : inP[0].t), lastD = dayStart(Math.max(Date.now(), inP[inP.length - 1].t));
+    const nDays = Math.round((lastD - first) / 86400e3) + 1;
+    const weekly = nDays > 62;
+    const size = weekly ? 7 : 1;
+    for(let t = first; t <= lastD; t += size * 86400e3) buckets.push({t, win:0, exp:0});
+    for(const e of inP){
+      const i = Math.min(buckets.length - 1, Math.floor((dayStart(e.t) - first) / (size * 86400e3)));
+      const n = netOf(e);
+      if(n >= 0) buckets[i].win += n; else buckets[i].exp += -n;
+    }
+    drawBars($("chBars"), buckets, weekly);
+  }else drawBars($("chBars"), [], false);
+
+  const cm = new Map();
+  for(const e of inP){ const k = (e.type === "exp" ? "Uitgave: " : "") + e.cat; const c = cm.get(k) || {name:k, net:0, n:0}; c.net += netOf(e); c.n++; cm.set(k, c); }
+  drawCats($("chCats"), [...cm.values()].sort((a, b) => b.net - a.net));
+
+  // tabel
+  const body = $("lgBody"); body.textContent = "";
+  const rows = inP.slice().reverse().slice(0, 500);
+  for(const e of rows){
+    const tr = document.createElement("tr");
+    const c = (txt, cls) => { const td = document.createElement("td"); td.textContent = txt; if(cls) td.className = cls; tr.appendChild(td); return td; };
+    c(fmtDate(e.t, true)); c(e.type === "exp" ? "Uitgave" : "Winst"); c(e.cat); c(e.note || "");
+    c(String(e.qty), "num"); c(signed(netOf(e)), "num " + (netOf(e) >= 0 ? "pos" : "neg"));
+    const td = document.createElement("td");
+    const del = document.createElement("button"); del.type = "button"; del.className = "del";
+    const armed = L.armed && L.armed.id === e.id && Date.now() - L.armed.t < 4000;
+    del.textContent = armed ? "Zeker?" : "Verwijder";
+    if(armed) del.classList.add("confirm");
+    del.addEventListener("click", () => {
+      if(L.armed && L.armed.id === e.id && Date.now() - L.armed.t < 4000){ L.armed = null; removeEntry(e.id); return; }
+      L.armed = {id:e.id, t:Date.now()};
+      del.classList.add("confirm"); del.textContent = "Zeker?";
+      setTimeout(() => { if(L.armed && L.armed.id === e.id && Date.now() - L.armed.t >= 4000){ L.armed = null; renderLog(); } }, 4100);
+    });
+    td.appendChild(del); tr.appendChild(td); body.appendChild(tr);
+  }
+  $("lgTbl").classList.toggle("hidden", !rows.length);
+  $("lgEmpty").classList.toggle("hidden", !!rows.length);
+  const sum = $("lgSum"); sum.textContent = "";
+  const b = document.createElement("b"); b.textContent = inP.length + " regel" + (inP.length === 1 ? "" : "s");
+  const sm = document.createElement("small"); sm.textContent = (L.period === "all" ? "alles" : PERIODS.find(p => p[0] === L.period)[1]) + (inP.length > 500 ? " · nieuwste 500 getoond" : "") + " · totaal " + all.length + " regels";
+  sum.append(b, sm);
+}
+
+function initLog(){
+  loadLocal(); rebuildMonthsFromEntries();
+  const per = $("lgPeriods");
+  for(const [v, l] of PERIODS){
+    const b = document.createElement("button"); b.type = "button"; b.className = "chip"; b.dataset.p = v; b.textContent = l;
+    b.addEventListener("click", () => { L.period = v; renderLog(); });
+    per.appendChild(b);
+  }
+  setLogType("win");
+  $("lgTypeWin").addEventListener("click", () => setLogType("win"));
+  $("lgTypeExp").addEventListener("click", () => setLogType("exp"));
+  $("lgAmount").addEventListener("input", updatePreview);
+  $("lgQty").addEventListener("input", updatePreview);
+  $("lgAmount").addEventListener("keydown", e => { if(e.key === "Enter") addFromForm(); });
+  $("lgAdd").addEventListener("click", addFromForm);
+  $("lgDate").value = localInputValue(Date.now());
+  $("lgStart").value = fmt(L.start); $("lgGoal").value = fmt(L.goal);
+  for(const [id, key] of [["lgStart", "start"], ["lgGoal", "goal"]]){
+    $(id).addEventListener("change", e => {
+      const v = parseSilver(e.target.value);
+      if(v == null || (key === "goal" && v <= 0)){ e.target.value = fmt(L[key]); return; }
+      L[key] = v; e.target.value = fmt(v); persistSettings(); renderLog();
+    });
+  }
+  $("lgExport").addEventListener("click", exportJson);
+  $("lgExportCsv").addEventListener("click", exportCsv);
+  $("lgImport").addEventListener("change", e => { const f = e.target.files && e.target.files[0]; if(f) importJson(f); e.target.value = ""; });
+  syncNote(IN_CLAUDE ? "Online opslag verbinden…"
+    : location.protocol === "file:" ? "Opslag: in deze browser (los bestand). Gebruik liever de website; zet regels over met Exporteer/Importeer JSON."
+    : "Opslag: in deze browser, op deze website. Blijft staan als de site wordt bijgewerkt. Exporteer af en toe een back-up (of om naar een ander apparaat over te zetten).");
+  let rt = null;
+  window.addEventListener("resize", () => { clearTimeout(rt); rt = setTimeout(renderLog, 150); });
+  connectDb();
+}
+
+function initSite(){
+  for(const b of document.querySelectorAll(".tabs button")){
+    b.addEventListener("click", () => { location.hash = b.dataset.view; showView(b.dataset.view); });
+  }
+  window.addEventListener("hashchange", () => showView(viewFromHash()));
+  $("dlSelfBtn").addEventListener("click", downloadSelf);
+  initLog();
+  showView(viewFromHash());
+}
+
+init();
+initSite();
+</script>
+</body>
+</html>
