@@ -35,7 +35,7 @@ select:focus,input:focus,textarea:focus,button:focus-visible{outline:2px solid v
 .chip{background:var(--panel2);color:var(--muted);border:1px solid var(--line);border-radius:999px;padding:4px 11px;font:inherit;font-size:12.5px;cursor:pointer}
 .chip[aria-pressed=true]{background:rgba(226,178,77,.14);border-color:var(--accent);color:var(--accent)}
 .chip:disabled{opacity:.35;cursor:not-allowed;border-style:dashed}
-.seg{display:grid;grid-template-columns:repeat(4,1fr);gap:0;margin-bottom:10px;border:1px solid var(--line);border-radius:9px;overflow:hidden}
+.seg{display:grid;grid-template-columns:repeat(3,1fr);gap:0;margin-bottom:10px;border:1px solid var(--line);border-radius:9px;overflow:hidden}
 .seg button{background:var(--panel2);color:var(--muted);border:0;padding:8px 2px;font:inherit;font-size:12.5px;cursor:pointer}
 .seg button[aria-pressed=true]{background:var(--accent);color:var(--accent-ink);font-weight:700}
 .btns{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:10px}
@@ -97,8 +97,25 @@ header{display:flex;flex-wrap:wrap;align-items:flex-end;justify-content:space-be
 .cartbar{grid-column:1/-1;position:sticky;bottom:10px;z-index:4;display:flex;gap:12px;align-items:center;justify-content:space-between;flex-wrap:wrap;
   background:#1f2633;border:1px solid var(--accent);border-radius:12px;padding:10px 14px;box-shadow:0 6px 24px rgba(0,0,0,.45)}
 .cartbar .btn.primary{flex:0 0 auto}
-#viewCart{display:block;max-width:1100px}
-#viewCart.hidden{display:none!important}
+#viewCart,#viewOrders{display:block;max-width:1100px}
+#viewCart.hidden,#viewOrders.hidden{display:none!important}
+.planner{margin:0;border-top:0;border-bottom:1px solid var(--line);padding:10px 16px}
+.planner summary{color:var(--text)}
+.planner summary span{color:var(--muted);font-size:12.5px}
+.planner-form{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:0 10px;margin-top:10px}
+.planner-form .pl-route{grid-column:1/-1}
+.plan-sum{margin:4px 0 8px;font-weight:600}
+.planner .btn.primary,#ordRoot .btn.primary{flex:0 0 auto}
+.planner .btns{align-items:center}
+.plan-wrap{overflow:auto;border:1px solid var(--line);border-radius:10px;margin-bottom:10px}
+.plan-table{min-width:560px}
+.plan-table th{cursor:default;position:static}
+.ord-h{margin:6px 0 0;font-size:15px}
+.ord-st{white-space:normal;font-size:12.5px;max-width:280px}
+.ord-st.bad{color:var(--bad)} .ord-st.good{color:var(--good)} .ord-st.na{color:var(--muted)}
+.ord-st .logbtn{display:block;margin:4px 0 0}
+.ordbtn{background:none;border:1px solid var(--good);color:var(--good);border-radius:6px;padding:2px 8px;font:inherit;font-size:12px;cursor:pointer;margin-left:4px}
+.ordbtn.on{background:var(--good);color:#06240f;font-weight:700}
 .cart{display:flex;flex-direction:column;gap:14px}
 .cart-head h2{margin:0;font-size:18px}
 .cart-table{min-width:760px}
@@ -158,6 +175,7 @@ td.pos{color:var(--good);font-weight:600} td.neg{color:var(--bad);font-weight:60
   </div>
   <nav class="tabs" role="tablist" aria-label="Tools">
     <button type="button" role="tab" id="tabMarkt" data-view="markt" aria-selected="true">Markt</button>
+    <button type="button" role="tab" id="tabOrders" data-view="orders" aria-selected="false">Orders<span id="ordCount"></span></button>
     <button type="button" role="tab" id="tabMandje" data-view="mandje" aria-selected="false">Mandje<span id="cartCount"></span></button>
     <button type="button" role="tab" id="tabLogboek" data-view="logboek" aria-selected="false">Logboek</button>
   </nav>
@@ -187,6 +205,7 @@ td.pos{color:var(--good);font-weight:600} td.neg{color:var(--bad);font-weight:60
       <button type="button" id="modeBm" aria-pressed="true">Black Market</button>
       <button type="button" id="modeCity" aria-pressed="false">Stad → stad</button>
       <button type="button" id="modeRoutes" aria-pressed="false">Routes</button>
+      <button type="button" id="modeOrders" aria-pressed="false">Buy orders</button>
       <button type="button" id="modeCraft" aria-pressed="false">Craften</button>
     </div>
     <div class="field"><span id="buyLabel">Koop in</span><div class="chips" id="buyCities"></div></div>
@@ -208,18 +227,24 @@ td.pos{color:var(--good);font-weight:600} td.neg{color:var(--bad);font-weight:60
 
   <div class="group hidden" id="craftBox">
     <h2>Craften</h2>
-    <label class="field"><span>Resource return rate (teruggekregen grondstoffen)</span>
+    <label class="field"><span>Waar craft je?</span>
       <select id="rrr">
-        <option value="p1">Geen bonus, geen focus (15,2%)</option>
-        <option value="p2">Bonusstad, geen focus (36,7%)</option>
-        <option value="p3">Geen bonus, met focus (43,5%)</option>
-        <option value="p4">Bonusstad + focus (53,9%)</option>
-        <option value="custom">Eigen waarde…</option>
+        <option value="best">In de bonusstad van elk item (aanbevolen)</option>
+        <option value="Thetford">Overal in Thetford</option>
+        <option value="Lymhurst">Overal in Lymhurst</option>
+        <option value="Bridgewatch">Overal in Bridgewatch</option>
+        <option value="Martlock">Overal in Martlock</option>
+        <option value="Fort Sterling">Overal in Fort Sterling</option>
+        <option value="Caerleon">Overal in Caerleon</option>
+        <option value="Brecilien">Overal in Brecilien</option>
+        <option value="custom">Eigen return rate…</option>
       </select>
     </label>
+    <label class="check" id="focusWrap"><input type="checkbox" id="focus"><span>Met focus <small style="color:var(--muted)">(zonder premium heb je weinig focus)</small></span></label>
     <label class="field hidden" id="rrrCustomWrap"><span>Eigen return rate (%)</span><input type="number" id="rrrCustom" min="0" max="90" step="0.1"></label>
     <label class="field"><span>Stationkosten per 100 voeding (silver)</span><input type="number" id="stationFee" min="0" step="10"></label>
-    <p class="est">0 = niet meegerekend. Vul in wat je in-game bij het station ziet. De itemwaarde wordt geschat uit de grondstoffen (zonder artefacten).</p>
+    <p class="est" id="rrrInfo"></p>
+    <p class="est">Stationkosten: 0 = niet meegerekend. Vul in wat je in-game bij het station ziet. De itemwaarde wordt geschat uit de grondstoffen (zonder artefacten).</p>
     <p class="est">Rekent met het standaardrecept van elk item. Artefacten en tokens krijg je niet terug en tellen dus voor 100% mee.</p>
   </div>
 
@@ -299,6 +324,18 @@ td.pos{color:var(--good);font-weight:600} td.neg{color:var(--bad);font-weight:60
 
 <section class="results" aria-label="Resultaten">
   <div class="sum" id="sum"><b>Nog geen scan</b><small>Kies links je route en items en klik op “Scan starten”.</small></div>
+  <details class="planner" id="planner">
+    <summary><b id="plTitle">Laadplanner</b> <span id="plSub">de beste lading voor je budget en draagkracht</span></summary>
+    <div class="planner-form">
+      <label class="field"><span>Budget (silver)</span><input type="text" id="plBudget" inputmode="decimal" placeholder="bijv. 2m"></label>
+      <label class="field"><span>Draagkracht (kg, leeg = geen limiet)</span><input type="number" id="plKg" min="0" step="10"></label>
+      <label class="field"><span>Max. deel van het dagvolume</span>
+        <select id="plPct"><option value="0.25">25%</option><option value="0.5">50%</option><option value="1">100%</option></select></label>
+      <label class="field"><span>Zonder volumedata: max. stuks</span><input type="number" id="plMax" min="1" step="1"></label>
+      <label class="field pl-route"><span>Route</span><select id="plRoute"></select></label>
+    </div>
+    <div id="plOut"></div>
+  </details>
   <div class="tablewrap">
     <table id="tbl" class="hidden">
       <thead><tr id="thead"></tr></thead>
@@ -313,6 +350,8 @@ td.pos{color:var(--good);font-weight:600} td.neg{color:var(--bad);font-weight:60
   <button type="button" class="btn primary" id="cartBarBtn">Naar mandje →</button>
 </div>
 </main>
+
+<main id="viewOrders" class="hidden"><section class="cart" id="ordRoot" aria-label="Orders"></section></main>
 
 <main id="viewCart" class="hidden"><section class="cart" id="cartRoot" aria-label="Mandje"></section></main>
 
@@ -401,7 +440,8 @@ const CAT_TITLES = {
 };
 const QNAME = {1:"",2:"Good",3:"Outstanding",4:"Excellent",5:"Masterpiece"};
 const TAX_PREMIUM = 0.04, TAX_FREE = 0.08, SETUP = 0.025;
-const RRR_PRESETS = {p1:0.152, p2:0.367, p3:0.435, p4:0.539};
+const CB = __CRAFTBONUS__;            // craftbonussen per stad uit de game-data
+const CRAFT_CITIES = Object.keys(CB.cities);
 const MIN_GAP_MS = 1100;          // blijft onder de limiet van de API
 const MAX_URL = 3600;             // ruim onder de 4096 tekens
 const KEY = "albionFlipToolSettings.v1";
@@ -414,7 +454,9 @@ const S = {
   buyMethod:"instant", sellMethod:"instant",
   cats:new Set(["w","a","o","c","b"]), tiers:new Set([4,5,6]), ench:new Set([0,1,2,3,4]),
   art:"all", quality:"1", maxAge:6, minProfit:5000, minRoi:5, maxRoi:200, maxBuy:0,
-  rrr:"p2", rrrCustom:40, stationFee:0,
+  rrr:"best", focus:false, rrrCustom:40, stationFee:0,
+  orderSell:new Set([BM, ...CITIES]),
+  plBudget:1000000, plKg:0, plPct:0.5, plMax:5, plRoute:"auto",
   q:"", showAll:false, limit:100, volAuto:true, minVol:0, volN:200,
   routeSell:new Set([BM, ...CITIES])
 };
@@ -432,7 +474,7 @@ function saveSettings(){
   try{
     localStorage.setItem(KEY, JSON.stringify({
       ...S, buyCities:[...S.buyCities], sellCities:[...S.sellCities],
-      matCities:[...S.matCities], craftSell:[...S.craftSell], routeSell:[...S.routeSell],
+      matCities:[...S.matCities], craftSell:[...S.craftSell], routeSell:[...S.routeSell], orderSell:[...S.orderSell],
       cats:[...S.cats], tiers:[...S.tiers], ench:[...S.ench]
     }));
   }catch(e){}
@@ -444,7 +486,12 @@ function loadSettings(){
     const cityList = a => new Set(a.filter(c => CITIES.includes(c)));
     if(API[j.server]) S.server = j.server;
     if(typeof j.premium === "boolean") S.premium = j.premium;
-    if(j.mode === "bm" || j.mode === "city" || j.mode === "craft" || j.mode === "routes") S.mode = j.mode;
+    if(["bm", "city", "craft", "routes", "orders"].includes(j.mode)) S.mode = j.mode;
+    if(Array.isArray(j.orderSell)) S.orderSell = new Set(j.orderSell.filter(c => CITIES.includes(c) || c === BM));
+    if(typeof j.focus === "boolean") S.focus = j.focus;
+    for(const k of ["plBudget", "plKg", "plMax"]) if(Number.isFinite(j[k]) && j[k] >= 0) S[k] = j[k];
+    if([0.25, 0.5, 1].includes(j.plPct)) S.plPct = j.plPct;
+    if(typeof j.plRoute === "string") S.plRoute = j.plRoute;
     if(Array.isArray(j.routeSell)) S.routeSell = new Set(j.routeSell.filter(c => CITIES.includes(c) || c === BM));
     if([100,200,400,800,1500].includes(j.volN)) S.volN = j.volN;
     if(Array.isArray(j.buyCities)) S.buyCities = cityList(j.buyCities);
@@ -460,7 +507,7 @@ function loadSettings(){
     if(j.art === "all" || j.art === "only" || j.art === "none") S.art = j.art;
     for(const k of ["maxAge","minProfit","minRoi","maxRoi","maxBuy","limit","rrrCustom","stationFee","minVol"]) if(Number.isFinite(j[k])) S[k] = j[k];
     if(typeof j.volAuto === "boolean") S.volAuto = j.volAuto;
-    if(j.rrr === "custom" || RRR_PRESETS[j.rrr] != null) S.rrr = j.rrr;
+    if(j.rrr === "custom" || j.rrr === "best" || CRAFT_CITIES.includes(j.rrr)) S.rrr = j.rrr;
     if(typeof j.showAll === "boolean") S.showAll = j.showAll;
   }catch(e){}
 }
@@ -597,6 +644,7 @@ function buildJobs(){
   }
   const locs = S.mode === "bm" ? [BM, ...S.buyCities]
     : S.mode === "routes" ? [...new Set([...S.buyCities, ...S.routeSell])]
+    : S.mode === "orders" ? [...new Set([...S.buyCities, ...S.orderSell])]
     : [...new Set([...S.buyCities, ...S.sellCities])];
   return [{ids:prods.map(p => p.id), locs, q:S.quality}];
 }
@@ -666,8 +714,8 @@ const CORS_HINT = "De browser kreeg geen antwoord van de API. Mogelijke oorzaken
 
 async function scan(){
   if(scanning) return;
-  if(S.mode === "routes"){
-    if(!S.buyCities.size || !S.routeSell.size){ setStatus("Kies minstens één stad om in te kopen en één plek om te verkopen.", "err"); return; }
+  if(S.mode === "routes" || S.mode === "orders"){
+    if(!S.buyCities.size || !(S.mode === "routes" ? S.routeSell : S.orderSell).size){ setStatus("Kies minstens één stad om in te kopen en één plek om te verkopen.", "err"); return; }
   }else if(S.mode === "craft"){
     if(!S.matCities.size || !S.craftSell.size){ setStatus("Kies minstens één stad voor materialen en één plek om te verkopen.", "err"); return; }
   }else if(!S.buyCities.size || (S.mode === "city" && !S.sellCities.size)){
@@ -879,9 +927,32 @@ function pasteJson(){
 }
 
 /* ---------- Berekenen ---------- */
-function currentRrr(){
-  if(S.rrr === "custom") return Math.min(0.9, Math.max(0, S.rrrCustom / 100));
-  return RRR_PRESETS[S.rrr] != null ? RRR_PRESETS[S.rrr] : 0;
+function bonusCityOf(it){
+  if(!it.cc) return null;
+  let best = null;
+  for(const c of CRAFT_CITIES){ const v = CB.cities[c].mods[it.cc]; if(v && (!best || v > best.v)) best = {c, v}; }
+  return best;
+}
+const rrrOf = pb => 1 - 1 / (1 + pb);
+// RRR voor één item: basisbonus van de stad + bonus voor deze itemsoort (+ focus)
+function rrrFor(it){
+  if(S.rrr === "custom") return {rrr:Math.min(0.9, Math.max(0, S.rrrCustom / 100)), city:null, bonus:false, custom:true};
+  const refine = it.c === "m";
+  const city = S.rrr === "best" ? (bonusCityOf(it) || {}).c || null : S.rrr;
+  const loc = city ? CB.cities[city] : null;
+  const base = loc ? (refine ? loc.refine : loc.craft) : 0.18;
+  const mod = loc && it.cc ? loc.mods[it.cc] || 0 : 0;
+  return {rrr:rrrOf(base + mod + (S.focus ? CB.focus : 0)), city, bonus:mod > 0};
+}
+function rrrLabel(){
+  if(S.rrr === "custom") return (Math.min(90, Math.max(0, S.rrrCustom))).toFixed(1).replace(".", ",") + "% (eigen)";
+  return (S.rrr === "best" ? "bonusstad per item" : S.rrr) + (S.focus ? " + focus" : "");
+}
+function updateRrrInfo(){
+  const f = S.focus ? CB.focus : 0, pc = v => (rrrOf(v) * 100).toFixed(1).replace(".", ",") + "%";
+  $("rrrInfo").textContent = "RRR" + (S.focus ? " met focus" : " zonder focus") + ": " + pc(0.18 + f) + " zonder bonus · " + pc(0.33 + f) +
+    " gear in de bonusstad · " + pc(0.58 + f) + " refinen in de bonusstad. De bonusstad per itemsoort komt uit de game-data.";
+  $("focusWrap").classList.toggle("hidden", S.rrr === "custom");
 }
 function freshFn(){
   const maxMs = S.maxAge * 3600000, now = Date.now();
@@ -889,9 +960,10 @@ function freshFn(){
 }
 function computeFlips(){
   const tax = S.premium ? TAX_PREMIUM : TAX_FREE;
-  const buyFee = S.buyMethod === "order" ? SETUP : 0;
+  const orders = S.mode === "orders";
+  const buyFee = orders || S.buyMethod === "order" ? SETUP : 0;
   const routes = S.mode === "routes";
-  const sellLocs = S.mode === "bm" ? [BM] : routes ? [...S.routeSell] : [...S.sellCities];
+  const sellLocs = S.mode === "bm" ? [BM] : routes ? [...S.routeSell] : orders ? [...S.orderSell] : [...S.sellCities];
   const fresh = freshFn();
   const needle = S.q.trim().toLowerCase();
   const rows = [];
@@ -905,16 +977,18 @@ function computeFlips(){
     const found = [];
     for(const a of S.buyCities){
       const A = o[a]; if(!A) continue;
-      const bp = S.buyMethod === "instant" ? A.sell : A.buy;
-      const bt = S.buyMethod === "instant" ? A.sellT : A.buyT;
+      // buy orders: 1 silver boven de hoogste bestaande buy order
+      const bp = orders ? (A.buy ? A.buy + 1 : 0) : S.buyMethod === "instant" ? A.sell : A.buy;
+      const bt = orders || S.buyMethod !== "instant" ? A.buyT : A.sellT;
       if(!bp || !fresh(bt)) continue;
       if(S.maxBuy > 0 && bp > S.maxBuy) continue;
       for(const b of sellLocs){
         if(b === BM && (p.it.c === "r" || p.it.c === "m")) continue;   // de Black Market koopt geen grondstoffen
         const B = o[b]; if(!B) continue;
-        const instantSell = b === BM || S.sellMethod === "instant";
+        const instantSell = b === BM || (!orders && S.sellMethod === "instant");
         const sellFee = tax + (!instantSell ? SETUP : 0);
-        const sp = instantSell ? B.buy : B.sell;
+        // buy orders: verkopen met een sell order 1 silver onder de laagste
+        const sp = instantSell ? B.buy : orders ? (B.sell > 1 ? B.sell - 1 : 0) : B.sell;
         const st = instantSell ? B.buyT : B.sellT;
         if(!sp || !fresh(st)) continue;
         const cost = bp * (1 + buyFee), net = sp * (1 - sellFee);
@@ -922,11 +996,12 @@ function computeFlips(){
         if(profit < S.minProfit || roi < S.minRoi) continue;
         if(S.maxRoi > 0 && roi > S.maxRoi) continue;
         const kg = p.it.wt ? p.it.wt[p.tier - 2] || 0 : 0;
-        found.push({id, quality, name, tier:p.tier, ench:p.e, from:a, to:b, buy:bp, buyT:bt, sell:sp, sellT:st, profit, roi, kg, cat:p.it.c});
+        found.push({id, quality, name, tier:p.tier, ench:p.e, from:a, to:b, buy:bp, buyT:bt, sell:sp, sellT:st, profit, roi, kg, cat:p.it.c,
+          costUnit:cost, buyOrder:buyFee > 0, sellOrder:!instantSell});
       }
     }
     if(!found.length) continue;
-    if(S.showAll || routes) rows.push(...found);      // routes: beste route per item pas na het volume kiezen
+    if(S.showAll || routes || orders) rows.push(...found);      // routes: beste route per item pas na het volume kiezen
     else rows.push(found.reduce((x, y) => y.profit > x.profit ? y : x));
   }
   return {rows, missing:0};
@@ -934,7 +1009,6 @@ function computeFlips(){
 function computeCrafts(){
   const tax = S.premium ? TAX_PREMIUM : TAX_FREE;
   const buyFee = S.buyMethod === "order" ? SETUP : 0;
-  const rrr = currentRrr();
   const fresh = freshFn();
   const needle = S.q.trim().toLowerCase();
   const matCache = new Map();
@@ -971,6 +1045,7 @@ function computeCrafts(){
     let hasSell = false;
     for(const t of S.craftSell){ const B = o[t]; if(B && (B.buy || B.sell)) { hasSell = true; break; } }
     if(!hasSell) continue;
+    const rr = rrrFor(p.it), rrr = rr.rrr;
     const lines = [];
     let matCost = 0, oldest = Infinity, complete = true;
     for(const [cid, n, ret] of rec){
@@ -999,7 +1074,7 @@ function computeCrafts(){
       if(S.maxRoi > 0 && roi > S.maxRoi) continue;
       found.push({id, quality, name, tier:p.tier, ench:p.e, from:"Craft", to:target, buy:cost, buyT:oldest, sell:sp, sellT:st, profit, roi,
         kg:p.it.wt ? p.it.wt[p.tier - 2] || 0 : 0, cat:p.it.c,
-        craft:{lines, matCost, fee, rrr}});
+        craft:{lines, matCost, fee, rrr, city:rr.city, bonus:rr.bonus}, costUnit:cost});
     }
     if(!found.length) continue;
     if(S.showAll) rows.push(...found);
@@ -1060,7 +1135,7 @@ function pipeline(){
   const res = compute();
   for(const r of res.rows){ attachVol(r); r.ppk = r.kg > 0 ? r.profit / r.kg : null; }
   let kept = S.minVol > 0 ? res.rows.filter(r => r.vEff != null && r.vEff >= S.minVol) : res.rows;
-  if(S.mode === "routes" && !S.showAll){
+  if((S.mode === "routes" || S.mode === "orders") && !S.showAll){
     const best = new Map();
     const score = r => [r.pot == null ? -1 : r.pot, r.profit];
     for(const r of kept){
@@ -1125,7 +1200,8 @@ function detailRow(r){
     box.appendChild(d);
   }
   const foot = document.createElement("div"); foot.className = "foot";
-  foot.textContent = "Materialen " + fmt(r.craft.matCost) + " (RRR " + (r.craft.rrr * 100).toFixed(1).replace(".", ",") + "%)" +
+  foot.textContent = "Materialen " + fmt(r.craft.matCost) + " (RRR " + (r.craft.rrr * 100).toFixed(1).replace(".", ",") + "%" +
+    (r.craft.city ? ", craften in " + r.craft.city + (r.craft.bonus ? " (bonusstad)" : " (geen bonus voor dit item)") : S.rrr === "custom" ? "" : ", geen stad met bonus voor dit item") + (S.focus && S.rrr !== "custom" ? ", met focus" : "") + ")" +
     (r.craft.fee ? " + stationkosten " + fmt(r.craft.fee) : "") + " = " + fmt(r.buy);
   box.appendChild(foot);
   td.appendChild(box); tr.appendChild(td);
@@ -1147,7 +1223,11 @@ function render(){
     if(r.quality > 1){ const q = document.createElement("span"); q.className = "q"; q.textContent = QNAME[r.quality] || ("Q" + r.quality); td1.appendChild(q); }
     const td2 = document.createElement("td");
     if(S.mode === "craft"){
-      td2.textContent = r.to;
+      const cs = document.createElement("span"); cs.className = "age"; cs.style.display = "inline";
+      cs.textContent = "craft " + (r.craft.city || (S.rrr === "custom" ? "–" : "elke stad"));
+      td2.appendChild(cs);
+      const ar = document.createElement("span"); ar.className = "arrow"; ar.textContent = "→"; td2.appendChild(ar);
+      td2.appendChild(document.createTextNode(r.to));
     }else{
       td2.appendChild(document.createTextNode(r.from));
       const ar = document.createElement("span"); ar.className = "arrow"; ar.textContent = "→"; td2.appendChild(ar);
@@ -1190,6 +1270,18 @@ function render(){
     kb.title = "Zet deze kans in je mandje";
     kb.addEventListener("click", () => cartToggle(r, kb));
     td7.insertBefore(kb, td7.firstChild);
+    if(S.mode === "orders"){
+      const ob = document.createElement("button"); ob.type = "button"; ob.className = "ordbtn";
+      const syncOb = () => { const on = hasOrder(r); ob.textContent = on ? "✓ Order" : "+ Order"; ob.classList.toggle("on", on); };
+      syncOb();
+      ob.title = "Volg deze buy order in de tab Orders (plaats hem in-game tegen " + fmt(r.buy) + ")";
+      ob.addEventListener("click", () => {
+        if(hasOrder(r)){ const k = orderKeyOf(r); ORD.list = ORD.list.filter(o => !(o.status === "open" && o.key === k)); ordSave(); updateOrdersUi(); }
+        else addOrder(r, 1);
+        syncOb();
+      });
+      kb.after(ob);
+    }
     const lb = document.createElement("button"); lb.type = "button"; lb.className = "logbtn"; lb.textContent = "Log";
     lb.title = "Zet deze kans klaar in het logboek";
     lb.addEventListener("click", () => logFromRow(r));
@@ -1214,13 +1306,14 @@ function render(){
       (lastScan ? " · laatste scan " + new Date(lastScan).toLocaleTimeString("nl-NL", {hour:"2-digit", minute:"2-digit"}) : "") +
       (S.minVol > 0 ? " · min. " + S.minVol + " verkocht/dag" : "") +
       " · belasting " + (S.premium ? "4% (premium)" : "8%") +
-      (S.mode === "craft" ? " · RRR " + (currentRrr() * 100).toFixed(1).replace(".", ",") + "%" : "");
+      (S.mode === "craft" ? " · RRR: " + rrrLabel() : "");
     sum.append(b, sm);
   }else{
     const b = document.createElement("b"); b.textContent = "Nog geen scan";
     const sm = document.createElement("small"); sm.textContent = "Kies links je route en items en klik op “Scan starten”.";
     sum.append(b, sm);
   }
+  renderPlanner(rows);
 }
 
 /* ---------- UI opbouwen ---------- */
@@ -1250,12 +1343,14 @@ function renderRouteChips(){
   $("buyLabel").textContent = craft ? "Materialen kopen in" : "Koop in";
   $("sellLabel").textContent = craft ? "Verkopen aan" : "Verkoop in";
   makeChips($("buyCities"), CITIES.map(c => ({value:c, label:c})), craft ? S.matCities : S.buyCities, () => changed(true));
-  const routes = S.mode === "routes";
-  makeChips($("sellCities"), (craft || routes ? [BM, ...CITIES] : CITIES).map(c => ({value:c, label:c})), craft ? S.craftSell : routes ? S.routeSell : S.sellCities, () => changed(true));
+  const routes = S.mode === "routes", orders = S.mode === "orders";
+  makeChips($("sellCities"), (craft || routes || orders ? [BM, ...CITIES] : CITIES).map(c => ({value:c, label:c})),
+    craft ? S.craftSell : routes ? S.routeSell : orders ? S.orderSell : S.sellCities, () => changed(true));
 }
 const HINTS = {
   bm: "Black Market: je verkoopt direct aan de NPC in Caerleon, dus alleen verkoopbelasting.",
   city: "Stad → stad werkt voor gear, ruwe grondstoffen en gerefinde materialen.",
+  orders: "Buy orders: je biedt 1 silver boven de hoogste buy order (2,5% fee) en verkoopt met een sell order 1 silver onder de laagste (8% + 2,5% zonder premium), of direct aan de Black Market. Kopen en verkopen in dezelfde stad mag. Je verdient pas als je order gevuld wordt: kijk naar Verk./dag. Met “+ Order” volg je een geplaatste order in de tab Orders.",
   routes: "Handelsroutes: alle koop- en verkoopplekken tegelijk (ook de Black Market), per item de route met de hoogste winst per dag (winst × kleinste dagvolume). Sorteer op Winst/dag of Winst/kg. Voor grondstoffen: zet Min. winst op 0–100.",
   craft: "Craften: kosten = materialen (min wat je terugkrijgt) + stationkosten. Verkoop aan de Black Market is direct; in een stad kies je zelf. Alleen Normal-kwaliteit."
 };
@@ -1265,8 +1360,10 @@ function applyMode(){
   $("modeCity").setAttribute("aria-pressed", m === "city");
   $("modeCraft").setAttribute("aria-pressed", m === "craft");
   $("modeRoutes").setAttribute("aria-pressed", m === "routes");
+  $("modeOrders").setAttribute("aria-pressed", m === "orders");
   $("sellCitiesWrap").classList.toggle("hidden", m === "bm");
-  $("sellMethodWrap").classList.toggle("hidden", m === "bm");
+  $("sellMethodWrap").classList.toggle("hidden", m === "bm" || m === "orders");
+  $("buyMethod").closest("label").classList.toggle("hidden", m === "orders");
   $("craftBox").classList.toggle("hidden", m !== "craft");
   $("modeHint").textContent = HINTS[m];
   $("buyMethodLabel").textContent = m === "craft" ? "Hoe koop je materialen?" : "Hoe koop je in?";
@@ -1274,6 +1371,7 @@ function applyMode(){
   $("maxBuyLabel").textContent = m === "craft" ? "Max. kosten per item" : "Max. aankoopprijs";
   $("quality").disabled = m === "craft";
   $("rrrCustomWrap").classList.toggle("hidden", S.rrr !== "custom");
+  updateRrrInfo();
   renderCatChips();
   renderRouteChips();
 }
@@ -1283,8 +1381,9 @@ function changed(rescanEstimate){
   render();
 }
 function setMode(m){
-  if(m === "routes" && S.mode !== "routes") sort = {k:"pot", dir:-1};
-  else if(m !== "routes" && S.mode === "routes" && sort.k === "pot") sort = {k:"profit", dir:-1};
+  const potModes = ["routes", "orders"];
+  if(potModes.includes(m) && !potModes.includes(S.mode)) sort = {k:"pot", dir:-1};
+  else if(!potModes.includes(m) && potModes.includes(S.mode) && sort.k === "pot") sort = {k:"profit", dir:-1};
   S.mode = m; applyMode(); changed(true);
 }
 function updateVolEst(){
@@ -1309,6 +1408,7 @@ function init(){
   $("modeCity").addEventListener("click", () => setMode("city"));
   $("modeCraft").addEventListener("click", () => setMode("craft"));
   $("modeRoutes").addEventListener("click", () => setMode("routes"));
+  $("modeOrders").addEventListener("click", () => setMode("orders"));
   $("volN").value = String(S.volN); updateVolEst();
   $("volN").addEventListener("change", e => { S.volN = +e.target.value; updateVolEst(); changed(); });
   $("server").addEventListener("change", e => { S.server = e.target.value; volStore.clear(); changed(true); });
@@ -1319,7 +1419,9 @@ function init(){
   $("sellMethod").addEventListener("change", e => { S.sellMethod = e.target.value; changed(); });
   $("quality").addEventListener("change", e => { S.quality = e.target.value; changed(true); });
   $("maxAge").addEventListener("change", e => { S.maxAge = +e.target.value; changed(); });
-  $("rrr").addEventListener("change", e => { S.rrr = e.target.value; $("rrrCustomWrap").classList.toggle("hidden", S.rrr !== "custom"); changed(); });
+  $("rrr").addEventListener("change", e => { S.rrr = e.target.value; $("rrrCustomWrap").classList.toggle("hidden", S.rrr !== "custom"); updateRrrInfo(); changed(); });
+  $("focus").checked = S.focus;
+  $("focus").addEventListener("change", e => { S.focus = e.target.checked; updateRrrInfo(); changed(); });
   for(const [id, key] of [["minProfit","minProfit"],["minRoi","minRoi"],["maxRoi","maxRoi"],["maxBuy","maxBuy"],["rrrCustom","rrrCustom"],["stationFee","stationFee"],["minVol","minVol"]]){
     $(id).addEventListener("input", e => { S[key] = Math.max(0, Number(e.target.value) || 0); changed(); });
   }
@@ -1332,6 +1434,7 @@ function init(){
   $("testBtn").addEventListener("click", testConnection);
   $("pasteBtn").addEventListener("click", pasteJson);
 
+  initPlanner();
   updateEstimate();
   render();
 }
@@ -1340,7 +1443,7 @@ function init(){
    Site: tabs, hosting en downloadversie
    ================================================================= */
 const IN_CLAUDE = !!(window.claude && typeof window.claude.use === "function");
-const VIEWS = {markt:"viewMarkt", mandje:"viewCart", logboek:"viewLog"};
+const VIEWS = {markt:"viewMarkt", orders:"viewOrders", mandje:"viewCart", logboek:"viewLog"};
 let currentView = "markt";
 
 function showView(v){
@@ -1351,6 +1454,7 @@ function showView(v){
   $("hostBanner").classList.toggle("hidden", !(IN_CLAUDE && v === "markt"));
   if(v === "logboek") renderLog();
   if(v === "mandje") renderCart();
+  if(v === "orders") renderOrders();
 }
 function viewFromHash(){ const h = (location.hash || "").replace(/^#/, ""); return VIEWS[h] ? h : "markt"; }
 
@@ -1386,7 +1490,7 @@ async function downloadSelf(){
    Logboek
    ================================================================= */
 const LOG_KEY = "albionLogboek.v1";
-const WIN_CATS = ["Flip → Black Market", "Flip stad → stad", "Handelsroute", "Craften", "Refinen", "Transport", "Gathering", "Overig"];
+const WIN_CATS = ["Flip → Black Market", "Flip stad → stad", "Handelsroute", "Buy orders", "Craften", "Refinen", "Transport", "Gathering", "Overig"];
 const EXP_CATS = ["Gear / set", "Verlies (gank)", "Premium", "Reparatie", "Leren / destiny board", "Mount", "Belasting en fees", "Overig"];
 const PERIODS = [["all", "Alles"], ["30", "30 dagen"], ["7", "7 dagen"], ["1", "Vandaag"]];
 const L = {entries:[], start:7000000, goal:50000000, type:"win", period:"all", backend:"local",
@@ -1572,7 +1676,7 @@ function logFromRow(r){
   location.hash = "logboek";
   showView("logboek");
   setLogType("win");
-  const cat = S.mode === "bm" ? "Flip → Black Market" : S.mode === "city" ? "Flip stad → stad" : S.mode === "routes" ? "Handelsroute"
+  const cat = S.mode === "bm" ? "Flip → Black Market" : S.mode === "city" ? "Flip stad → stad" : S.mode === "routes" ? "Handelsroute" : S.mode === "orders" ? "Buy orders"
     : (r.cat === "m" ? "Refinen" : "Craften");
   $("lgCat").value = cat;
   $("lgNote").value = ("T" + r.tier + (r.ench ? "." + r.ench : "") + " " + r.name + " · " + (r.from === "Craft" ? "craft → " + r.to : r.from + " → " + r.to)).slice(0, 120);
@@ -1903,6 +2007,7 @@ function initSite(){
   $("dlSelfBtn").addEventListener("click", downloadSelf);
   initLog();
   initCart();
+  initOrders();
   showView(viewFromHash());
 }
 
@@ -1912,8 +2017,8 @@ function initSite(){
    ================================================================= */
 const CART_KEY = "albionMandje.v1";
 const CART = {items:[], stage:"select", checks:{}};
-const MODE_LABEL = {bm:"Flip → BM", city:"Stad → stad", routes:"Route", craft:"Craften"};
-const MODE_LOGCAT = {bm:"Flip → Black Market", city:"Flip stad → stad", routes:"Handelsroute"};
+const MODE_LABEL = {bm:"Flip → BM", city:"Stad → stad", routes:"Route", orders:"Buy order", craft:"Craften"};
+const MODE_LOGCAT = {bm:"Flip → Black Market", city:"Flip stad → stad", routes:"Handelsroute", orders:"Buy orders"};
 
 function cartSave(){ try{ localStorage.setItem(CART_KEY, JSON.stringify(CART)); }catch(e){} }
 function cartLoad(){
@@ -1931,13 +2036,14 @@ function weightOf(id){ const p = parseId(id); return p && p.it.wt ? p.it.wt[p.ti
 function cartSnapshot(r){
   const craft = !!r.craft;
   const buyFee = !craft && S.buyMethod === "order" ? SETUP : 0;
-  const costUnit = craft ? r.buy : r.buy * (1 + buyFee);
+  const costUnit = r.costUnit != null ? r.costUnit : craft ? r.buy : r.buy * (1 + buyFee);
   const instantSell = r.to === BM || S.mode === "bm" || S.sellMethod === "instant";
   return {
     key:cartKey(r), mode:S.mode, id:r.id, name:r.name, tier:r.tier, ench:r.ench, quality:r.quality, cat:r.cat || "",
     from:r.from, to:r.to, buy:r.buy, sell:r.sell, costUnit, profit:r.profit, kg:r.kg || 0,
-    vol:r.vEff == null ? null : r.vEff, qty:1, buyOrder:!craft && S.buyMethod === "order", sellOrder:!instantSell,
-    craft:craft ? {rrr:r.craft.rrr, fee:r.craft.fee, matOrder:S.buyMethod === "order",
+    vol:r.vEff == null ? null : r.vEff, qty:1, buyOrder:r.buyOrder != null ? r.buyOrder : !craft && S.buyMethod === "order",
+    sellOrder:r.sellOrder != null ? r.sellOrder : !instantSell,
+    craft:craft ? {rrr:r.craft.rrr, fee:r.craft.fee, city:r.craft.city || null, matOrder:S.buyMethod === "order",
       lines:r.craft.lines.map(l => ({id:l.id, name:l.name, n:l.n, ret:l.ret, raw:l.raw, city:l.city}))} : null,
     t:Date.now()
   };
@@ -1989,7 +2095,7 @@ function buildChecklist(){
           ret:l.ret, price:l.raw, order:x.craft.matOrder, kg:weightOf(l.id), mat:true});
       }
       crafts.push({key:"c|" + x.key, x});
-    }else{
+    }else if(!x.bought){
       addBuy(x.from, "i|" + x.id + "|" + x.quality, {key:"b|" + x.from + "|" + x.id + "|" + x.quality, id:x.id, name:itemLabel(x), qty:x.qty, qtyFull:x.qty,
         ret:0, price:x.buy, order:x.buyOrder, kg:x.kg, mat:false, copy:x.name});
     }
@@ -2149,7 +2255,7 @@ function renderList(root, t){
     const sc = sec("Craften", "Craft in een stad met bonus voor dit item (en met focus als je die hebt) om de RRR uit je scan te halen.");
     for(const c of crafts){
       const x = c.x;
-      checkLine(sc, c.key, x.qty + "× " + itemLabel(x) + " craften",
+      checkLine(sc, c.key, x.qty + "× " + itemLabel(x) + " craften" + (x.craft.city ? " in " + x.craft.city : ""),
         "RRR " + (x.craft.rrr * 100).toFixed(1).replace(".", ",") + "%" + (x.craft.fee ? " · stationkosten ±" + fmt(x.craft.fee * x.qty) : "") + " · kosten ±" + fmt(x.costUnit * x.qty));
     }
   }
@@ -2200,6 +2306,283 @@ function initCart(){
   $("cartBarBtn").addEventListener("click", () => { location.hash = "mandje"; showView("mandje"); });
   updateCartUi();
 }
+
+
+/* =================================================================
+   Laadplanner (boven de resultaten in Markt)
+   ================================================================= */
+let lastRows = [];
+function routeKeyOf(r){ return (r.from === "Craft" ? "Craft" : r.from) + "→" + r.to; }
+function routeName(k){ const [a, b] = k.split("→"); return (a === "Craft" ? "Craften" : a) + " → " + (b === BM ? "Black Market" : b); }
+function planLoad(rows, budget, kgCap, pct, maxNoVol){
+  const cand = [];
+  for(const r of rows){
+    if(!(r.profit > 0)) continue;
+    const cost = r.costUnit != null ? r.costUnit : r.buy;
+    const cap = r.vEff != null ? Math.floor(r.vEff * pct) : maxNoVol;
+    if(cap < 1 || !(cost > 0)) continue;
+    const kg = r.kg || 0;
+    let score;
+    if(budget > 0 && kgCap > 0) score = r.profit / Math.max(cost / budget, kg / kgCap, 1e-12);
+    else if(budget > 0) score = r.profit / cost;
+    else if(kgCap > 0) score = r.profit / Math.max(kg, 0.01);
+    else score = r.profit;
+    cand.push({r, cost, kg, cap, score});
+  }
+  cand.sort((a, b) => b.score - a.score);
+  let remB = budget > 0 ? budget : Infinity, remK = kgCap > 0 ? kgCap : Infinity;
+  const lines = [];
+  let cost = 0, profit = 0, kg = 0;
+  for(const c of cand){
+    let q = c.cap;
+    if(Number.isFinite(remB)) q = Math.min(q, Math.floor(remB / c.cost));
+    if(Number.isFinite(remK) && c.kg > 0) q = Math.min(q, Math.floor(remK / c.kg));
+    if(q < 1) continue;
+    lines.push({r:c.r, qty:q, cost:c.cost * q, profit:c.r.profit * q, kg:c.kg * q, capped:c.r.vEff != null && q === c.cap});
+    remB -= c.cost * q; remK -= c.kg * q; cost += c.cost * q; profit += c.r.profit * q; kg += c.kg * q;
+  }
+  return {lines, cost, profit, kg};
+}
+function renderPlanner(rows){
+  lastRows = rows;
+  const box = $("planner");
+  const isOrders = S.mode === "orders";
+  $("plTitle").textContent = isOrders ? "Orderplanner" : "Laadplanner";
+  $("plSub").textContent = isOrders ? "hoeveel orders je met je budget kunt plaatsen, en welke" : "de beste lading voor je budget en draagkracht";
+  if(!box.open) return;
+  const out = $("plOut"); out.textContent = "";
+  if(!rows.length){ out.appendChild(el("p", "est", "Scan eerst; de planner gebruikt de kansen hieronder (met je filters).")); return; }
+  // routes met hun beste plan
+  const groups = new Map();
+  for(const r of rows){ const k = routeKeyOf(r); if(!groups.has(k)) groups.set(k, []); groups.get(k).push(r); }
+  const plans = [...groups].map(([k, list]) => ({k, plan:planLoad(list, S.plBudget, S.plKg, S.plPct, S.plMax)}))
+    .filter(x => x.plan.lines.length).sort((a, b) => b.plan.profit - a.plan.profit).slice(0, 30);
+  const sel = $("plRoute"), cur = S.plRoute;
+  sel.textContent = "";
+  const o0 = el("option", null, "Beste route (automatisch)"); o0.value = "auto"; sel.appendChild(o0);
+  if(isOrders){ const oa = el("option", null, "Alle routes samen (orders in meerdere steden)"); oa.value = "all"; sel.appendChild(oa); }
+  for(const x of plans){ const o = el("option", null, routeName(x.k) + " · ±" + fmtS(x.plan.profit)); o.value = x.k; sel.appendChild(o); }
+  sel.value = [...sel.options].some(o => o.value === cur) ? cur : "auto";
+  let plan, label;
+  if(sel.value === "all"){ plan = planLoad(rows, S.plBudget, S.plKg, S.plPct, S.plMax); label = "alle routes"; }
+  else{
+    const pick = sel.value === "auto" ? plans[0] : plans.find(x => x.k === sel.value);
+    if(!pick){ out.appendChild(el("p", "est", "Geen lading mogelijk met dit budget en deze draagkracht.")); return; }
+    plan = pick.plan; label = routeName(pick.k);
+  }
+  if(!plan.lines.length){ out.appendChild(el("p", "est", "Geen lading mogelijk met dit budget en deze draagkracht.")); return; }
+  out.appendChild(el("p", "plan-sum", label + ": " + plan.lines.reduce((s, l) => s + l.qty, 0) + " stuks · kosten " + fmtS(plan.cost) +
+    " · winst ±" + fmtS(plan.profit) + " (" + Math.round(plan.profit / plan.cost * 100) + "%)" + (plan.kg ? " · " + fmtKg(plan.kg) : "")));
+  const t = el("table", "plan-table"), th = el("tr");
+  for(const [l, n] of [["Item"], ["Route"], ["Aantal", 1], ["Kosten", 1], ["Winst", 1], ["Gewicht", 1]]) th.appendChild(el("th", n ? "num" : null, l));
+  const thead = el("thead"); thead.appendChild(th); t.appendChild(thead);
+  const tb = el("tbody");
+  for(const l of plan.lines){
+    const tr = el("tr");
+    const td = el("td"); td.append(el("span", "tier", "T" + l.r.tier + (l.r.ench ? "." + l.r.ench : "")), document.createTextNode(l.r.name)); tr.appendChild(td);
+    tr.appendChild(el("td", null, routeName(routeKeyOf(l.r))));
+    const tq = el("td", "num", String(l.qty));
+    if(l.capped) tq.title = "Begrensd op " + Math.round(S.plPct * 100) + "% van het dagvolume";
+    tr.append(tq, el("td", "num", fmt(l.cost)), el("td", "num profit", "+" + fmt(l.profit)), el("td", "num", l.kg ? fmtKg(l.kg) : "–"));
+    tb.appendChild(tr);
+  }
+  t.appendChild(tb);
+  const wrap = el("div", "plan-wrap"); wrap.appendChild(t); out.appendChild(wrap);
+  const btns = el("div", "btns");
+  const add = el("button", "btn primary", "Zet in mandje"); add.type = "button"; add.id = "plToCart";
+  add.addEventListener("click", () => {
+    for(const l of plan.lines){
+      const k = cartKey(l.r), ex = CART.items.find(x => x.key === k);
+      if(ex) ex.qty = l.qty; else{ const snap = cartSnapshot(l.r); snap.qty = l.qty; CART.items.push(snap); }
+    }
+    CART.stage = "select"; cartSave(); updateCartUi(); render();
+    $("plMsg").textContent = plan.lines.length + (plan.lines.length === 1 ? " item" : " items") + " in je mandje gezet.";
+  });
+  btns.appendChild(add);
+  if(isOrders){
+    const fo = el("button", "btn", "Volg als orders"); fo.type = "button"; fo.id = "plToOrders";
+    fo.addEventListener("click", () => {
+      let n = 0;
+      for(const l of plan.lines){ if(addOrder(l.r, l.qty, true)) n++; }
+      ordSave(); updateOrdersUi(); render();
+      $("plMsg").textContent = n + " orders toegevoegd aan de tab Orders. Plaats ze in-game tegen de getoonde prijs.";
+    });
+    btns.appendChild(fo);
+  }
+  const msg = el("span", "est"); msg.id = "plMsg";
+  btns.appendChild(msg);
+  out.appendChild(btns);
+  out.appendChild(el("p", "est", "Volgorde: de meeste winst per silver" + (S.plKg > 0 ? " en per kg" : "") + ". Per item maximaal " +
+    Math.round(S.plPct * 100) + "% van wat er per dag verkocht wordt, of " + S.plMax + " stuks als het volume onbekend is."));
+}
+function initPlanner(){
+  $("plBudget").value = S.plBudget ? fmt(S.plBudget) : "";
+  $("plKg").value = S.plKg || "";
+  $("plPct").value = String(S.plPct);
+  $("plMax").value = S.plMax;
+  $("plBudget").addEventListener("change", e => { const v = parseSilver(e.target.value); S.plBudget = v != null && v > 0 ? v : 0; e.target.value = S.plBudget ? fmt(S.plBudget) : ""; changed(); });
+  $("plKg").addEventListener("input", e => { S.plKg = Math.max(0, Number(e.target.value) || 0); changed(); });
+  $("plPct").addEventListener("change", e => { S.plPct = +e.target.value; changed(); });
+  $("plMax").addEventListener("input", e => { S.plMax = Math.max(1, Math.round(Number(e.target.value) || 1)); changed(); });
+  $("plRoute").addEventListener("change", e => { S.plRoute = e.target.value; changed(); });
+  $("planner").addEventListener("toggle", () => renderPlanner(lastRows));
+}
+
+/* =================================================================
+   Orders volgen (tab Orders)
+   ================================================================= */
+const ORD_KEY = "albionOrders.v1";
+const ORD = {list:[], checked:null};
+function ordSave(){ try{ localStorage.setItem(ORD_KEY, JSON.stringify(ORD)); }catch(e){} }
+function ordLoad(){
+  try{
+    const j = JSON.parse(localStorage.getItem(ORD_KEY) || "null");
+    if(j && Array.isArray(j.list)) ORD.list = j.list.filter(o => o && o.id && o.itemId);
+    if(j && Number.isFinite(j.checked)) ORD.checked = j.checked;
+  }catch(e){}
+}
+function orderKeyOf(r){ return r.id + "|" + r.quality + "|" + r.from; }
+function hasOrder(r){ const k = orderKeyOf(r); return ORD.list.some(o => o.status === "open" && o.key === k); }
+function addOrder(r, qty, quiet){
+  const k = orderKeyOf(r);
+  const ex = ORD.list.find(o => o.status === "open" && o.key === k);
+  if(ex){ if(qty) ex.qty = qty; return false; }
+  ORD.list.push({id:newId(), key:k, itemId:r.id, quality:r.quality, name:r.name, tier:r.tier, ench:r.ench, cat:r.cat || "", kg:r.kg || 0,
+    city:r.from, price:Math.round(r.buy), qty:qty || 1, t:Date.now(), sellTo:r.to, sellAt:Math.round(r.sell), status:"open"});
+  if(!quiet){ ordSave(); updateOrdersUi(); }
+  return true;
+}
+function orderProfitUnit(o){
+  const tax = S.premium ? TAX_PREMIUM : TAX_FREE;
+  const net = o.sellTo === BM ? o.sellAt * (1 - tax) : o.sellAt * (1 - tax - SETUP);
+  return net - o.price * (1 + SETUP);
+}
+function orderStatus(o){
+  const rec = store.get(o.itemId + "|" + o.quality), c = rec && rec[o.city];
+  if(!c || !c.buy) return {cls:"na", text:"Nog niet gecheckt"};
+  const age = c.buyT ? " · data " + fmtAge(c.buyT) + " oud" : "";
+  if(c.buy > o.price) return {cls:"bad", text:"Overboden: hoogste is nu " + fmt(c.buy) + " (+" + fmt(c.buy - o.price) + ")" + age, over:true, top:c.buy};
+  return {cls:"good", text:(c.buy === o.price ? "Jij (of iemand op dezelfde prijs) bent het hoogst" : "Jij bent het hoogst") + age};
+}
+function updateOrdersUi(){
+  const n = ORD.list.filter(o => o.status === "open").length;
+  $("ordCount").textContent = n ? " (" + n + ")" : "";
+  if(currentView === "orders") renderOrders();
+}
+async function checkOrders(){
+  const open = ORD.list.filter(o => o.status === "open");
+  const msg = $("ordMsg");
+  if(!open.length){ msg.textContent = "Geen open orders om te checken."; return; }
+  if(scanning){ msg.textContent = "Er loopt al een scan; wacht tot die klaar is."; return; }
+  const ids = [...new Set(open.map(o => o.itemId))], locs = [...new Set(open.map(o => o.city))], qs = [...new Set(open.map(o => o.quality))].sort();
+  const urls = urlsForJob({ids, locs, q:qs.join(",")});
+  setBusy(true); ctrl = new AbortController();
+  msg.textContent = "Bezig met checken…";
+  let failed = 0;
+  try{
+    for(const u of urls){
+      try{ ingest(await fetchJson(u, ctrl.signal)); }
+      catch(e){ if(e.name === "AbortError") break; if(e instanceof TypeError){ failed = -1; break; } failed++; }
+    }
+  }finally{ setBusy(false); }
+  ORD.checked = Date.now(); ordSave();
+  const over = open.filter(o => orderStatus(o).over).length;
+  ORD.msg = failed === -1 ? CORS_HINT : failed ? failed + " van " + urls.length + " verzoeken mislukt." :
+    "Gecheckt: " + (over ? over + " van je " + open.length + " orders zijn overboden." : "je bent overal nog het hoogst.");
+  renderOrders();
+}
+function renderOrders(){
+  const lastMsg = ORD.msg || ""; ORD.msg = "";
+  const root = $("ordRoot"); root.textContent = "";
+  const head = el("div", "cart-head"); head.appendChild(el("h2", null, "Orders")); root.appendChild(head);
+  const open = ORD.list.filter(o => o.status === "open"), filled = ORD.list.filter(o => o.status === "filled");
+  root.appendChild(el("p", "est", "Je geplaatste buy orders. Klik op “Check nu” om te zien of je overboden bent. Is een order gevuld, markeer hem dan als gevuld en zet hem in je mandje om te verkopen."));
+  if(!ORD.list.length){
+    root.appendChild(el("div", "empty", "Nog geen orders. Kies in Markt de modus “Buy orders”, scan, en klik bij een kans op “+ Order” (of gebruik de Orderplanner)."));
+    return;
+  }
+  const locked = open.reduce((s, o) => s + o.price * o.qty * (1 + SETUP), 0);
+  const exp = open.reduce((s, o) => s + orderProfitUnit(o) * o.qty, 0);
+  const tiles = el("div", "tiles");
+  tile(tiles, "Open orders", String(open.length), open.reduce((s, o) => s + o.qty, 0) + " stuks");
+  tile(tiles, "Silver vastgezet", fmtS(locked), "inclusief 2,5% setup fee");
+  tile(tiles, "Verwachte winst als alles vult", (exp >= 0 ? "+" : "") + fmtS(exp), "bij de verkoopprijs van je scan");
+  tile(tiles, "Laatst gecheckt", ORD.checked ? fmtAge(ORD.checked) + " geleden" : "nog niet", "");
+  root.appendChild(tiles);
+  const bar = el("div", "btns");
+  const chk = el("button", "btn primary", "Check nu"); chk.type = "button"; chk.id = "ordCheck";
+  chk.addEventListener("click", checkOrders);
+  const m = el("span", "est", lastMsg); m.id = "ordMsg";
+  bar.append(chk, m); root.appendChild(bar);
+  const section = (title, list, filledList) => {
+    if(!list.length) return;
+    root.appendChild(el("h3", "ord-h", title));
+    const wrap = el("div", "results"), tw = el("div", "tablewrap"), t = el("table", "cart-table"), hr = el("tr");
+    const cols = filledList ? [["Item"], ["Gekocht in"], ["Prijs", 1], ["Aantal", 1], ["Verkopen", 0], [""]] : [["Item"], ["Stad"], ["Mijn prijs", 1], ["Aantal", 1], ["Status"], [""]];
+    for(const [l, n] of cols){ const th = el("th", n ? "num" : null, l); th.style.cursor = "default"; hr.appendChild(th); }
+    const thead = el("thead"); thead.appendChild(hr); t.appendChild(thead);
+    const tb = el("tbody");
+    for(const o of list){
+      const tr = el("tr");
+      const td = el("td"); td.append(el("span", "tier", "T" + o.tier + (o.ench ? "." + o.ench : "")), document.createTextNode(o.name));
+      if(o.quality > 1) td.appendChild(el("span", "q", QNAME[o.quality] || "Q" + o.quality));
+      const age = el("span", "age", "geplaatst " + fmtAge(o.t) + " geleden"); td.appendChild(age);
+      tr.append(td, el("td", null, o.city));
+      if(filledList){
+        tr.append(el("td", "num", fmt(o.price)), el("td", "num", String(o.qty)),
+          el("td", null, (o.sellTo === BM ? "Black Market" : o.sellTo) + " · ±" + fmt(o.sellAt) + " · winst ±" + fmt(orderProfitUnit(o) * o.qty)));
+      }else{
+        const tp = el("td", "num"); const ip = el("input"); ip.type = "number"; ip.min = "1"; ip.value = o.price; ip.className = "qty"; ip.setAttribute("aria-label", "Prijs " + o.name);
+        ip.addEventListener("change", () => { o.price = Math.max(1, Math.round(Number(ip.value) || o.price)); ordSave(); renderOrders(); });
+        tp.appendChild(ip);
+        const tq = el("td", "num"); const iq = el("input"); iq.type = "number"; iq.min = "1"; iq.value = o.qty; iq.className = "qty"; iq.setAttribute("aria-label", "Aantal " + o.name);
+        iq.addEventListener("change", () => { o.qty = Math.max(1, Math.round(Number(iq.value) || 1)); ordSave(); renderOrders(); });
+        tq.appendChild(iq);
+        const st = orderStatus(o);
+        const ts = el("td", "ord-st " + st.cls, st.text);
+        if(st.over){
+          const up = el("button", "logbtn", "Op " + fmt(st.top + 1) + " zetten"); up.type = "button";
+          up.title = "Pas je prijs aan naar 1 silver boven de hoogste (doe dit ook in-game)";
+          up.addEventListener("click", () => { o.price = st.top + 1; ordSave(); renderOrders(); });
+          ts.appendChild(up);
+        }
+        tr.append(tp, tq, ts);
+      }
+      const ta = el("td");
+      ta.appendChild(copyBtn(o.name));
+      if(filledList){
+        const ic = el("button", "cartbtn", "+ Mandje"); ic.type = "button";
+        ic.addEventListener("click", () => { addFilledToCart(o); ic.textContent = "✓ In mandje"; ic.classList.add("on"); });
+        ta.appendChild(ic);
+      }else{
+        const fb = el("button", "logbtn", "Gevuld"); fb.type = "button";
+        fb.addEventListener("click", () => { o.status = "filled"; o.filledAt = Date.now(); ordSave(); updateOrdersUi(); });
+        ta.appendChild(fb);
+      }
+      const del = el("button", "del", "Verwijder"); del.type = "button"; del.style.marginLeft = "4px";
+      del.addEventListener("click", () => {
+        if(del.dataset.armed){ ORD.list = ORD.list.filter(x => x.id !== o.id); ordSave(); updateOrdersUi(); if(currentView === "markt") render(); return; }
+        del.dataset.armed = "1"; del.textContent = "Zeker?"; del.classList.add("confirm");
+      });
+      ta.appendChild(del);
+      tr.appendChild(ta);
+      tb.appendChild(tr);
+    }
+    t.appendChild(tb); tw.appendChild(t); wrap.appendChild(tw); root.appendChild(wrap);
+  };
+  section("Open orders", open, false);
+  section("Gevuld: klaar om te verkopen", filled, true);
+}
+function addFilledToCart(o){
+  const unit = o.price * (1 + SETUP);
+  const key = "orders|" + o.itemId + "|" + o.quality + "|" + o.city + "|" + o.sellTo + "|" + o.id;
+  if(CART.items.some(x => x.key === key)) return;
+  CART.items.push({key, mode:"orders", id:o.itemId, name:o.name, tier:o.tier, ench:o.ench, quality:o.quality, cat:o.cat,
+    from:o.city, to:o.sellTo, buy:o.price, sell:o.sellAt, costUnit:unit, profit:orderProfitUnit(o), kg:o.kg || 0, vol:null,
+    qty:o.qty, buyOrder:true, sellOrder:o.sellTo !== BM, craft:null, bought:true, t:Date.now()});
+  CART.stage = "select"; cartSave(); updateCartUi();
+}
+function initOrders(){ ordLoad(); updateOrdersUi(); }
 
 init();
 initSite();

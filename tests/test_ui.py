@@ -378,7 +378,8 @@ with sync_playwright() as p:
     check(any("T5_METALBAR_LEVEL2@2" in u and "Black Market" not in u for u in decoded), "enchanted materialen (T5_METALBAR_LEVEL2@2) zonder BM opgevraagd")
     check(all("qualities=1" in u and "qualities=1," not in u for u in decoded), "craft: altijd alleen kwaliteit 1")
 
-    rrr = 0.367
+    rrr = 1 - 1 / 1.33        # zwaard: Lymhurst is de bonusstad (0,18 basis + 0,15)
+    rrr_ref = 1 - 1 / 1.58    # steel bar: Thetford refine-bonus (0,18 + 0,40)
     cost0 = (16 * 10000 + 8 * 5000) * (1 - rrr)
     exp0 = round(260000 * 0.96 - cost0)
     cost2 = (16 * 25000 + 8 * 12000) * (1 - rrr)
@@ -390,16 +391,16 @@ with sync_playwright() as p:
     r0 = [r for r in sw if r[0].startswith("T5Expert") or r[0].startswith("T5 ")]
     r0 = [r for r in sw if re.match(r"^T5(?!\.)", r[0])]
     r2 = [r for r in sw if r[0].startswith("T5.2")]
-    check(len(r0) == 1 and r0[0][4] == fmt_nl(exp0) and r0[0][1] == "Black Market", "craft T5 broadsword: %s (was %s)" % (fmt_nl(exp0), r0[0][1:5] if r0 else None))
+    check(len(r0) == 1 and r0[0][4] == fmt_nl(exp0) and r0[0][1] == "craft Lymhurst → Black Market", "craft T5 broadsword: %s (was %s)" % (fmt_nl(exp0), r0[0][1:5] if r0 else None))
     check(len(r0) == 1 and r0[0][5] == "%.1f%%" % (exp0 / cost0 * 100), "craft ROI %.1f%% (was %s)" % (exp0 / cost0 * 100, r0[0][5] if r0 else None))
     check(len(r2) == 1 and r2[0][4] == fmt_nl(exp2), "craft T5.2 broadsword (enchanted recept): %s (was %s)" % (fmt_nl(exp2), r2[0][4] if r2 else None))
-    check(len(r0) == 1 and "126.600" in r0[0][2], "kosten 126.600 zichtbaar: %s" % (r0[0][2] if r0 else None))
+    check(len(r0) == 1 and "{:,}".format(round(cost0)).replace(",", ".") in r0[0][2], "kosten zichtbaar: %s" % (r0[0][2] if r0 else None))
 
     # receptdetails
     p4.locator("#tbody tr", has_text="Broadsword").first.locator(".recipe-btn").click()
     det = p4.inner_text("tr.detail")
     print("detail:", det.replace("\n", " | ")[:300])
-    check("16×" in det and "8×" in det and "Lymhurst" in det and "Martlock" in det and "RRR 36,7%" in det, "receptdetails tonen materialen, steden en RRR")
+    check("16×" in det and "8×" in det and "Lymhurst" in det and "Martlock" in det and "RRR 24,8%" in det and "craften in Lymhurst" in det, "receptdetails tonen materialen, steden en RRR")
 
     # eigen RRR
     p4.select_option("#rrr", "custom")
@@ -408,7 +409,7 @@ with sync_playwright() as p:
     r0 = [r for r in find(p4, "Broadsword") if re.match(r"^T5(?!\.)", r[0])]
     exp_c = round(260000 * 0.96 - 200000 * 0.5)
     check(len(r0) == 1 and r0[0][4] == fmt_nl(exp_c), "eigen RRR 50%%: %s (was %s)" % (fmt_nl(exp_c), r0[0][4] if r0 else None))
-    p4.select_option("#rrr", "p2")
+    p4.select_option("#rrr", "best")
 
     # stationkosten
     p4.fill("#stationFee", "1000")
@@ -448,11 +449,11 @@ with sync_playwright() as p:
         chip("sellCities", c)
     run_scan()
     bar = find(p4, "Steel Bar")
-    cost_r = (3 * 2000 + 1 * 7000) * (1 - rrr)
+    cost_r = (3 * 2000 + 1 * 7000) * (1 - rrr_ref)
     exp_r = round(15000 * 0.96 - cost_r)
     print("refine rijen:", bar, "verwacht", exp_r, "ROI", exp_r / cost_r * 100)
     bar5 = [r for r in bar if r[0].startswith("T5")]
-    check(len(bar5) == 1 and bar5[0][4] == fmt_nl(exp_r) and bar5[0][1] == "Martlock", "refinen T5 steel bar: %s (was %s)" % (fmt_nl(exp_r), bar5[0][1:5] if bar5 else None))
+    check(len(bar5) == 1 and bar5[0][4] == fmt_nl(exp_r) and bar5[0][1] == "craft Thetford → Martlock", "refinen T5 steel bar: %s (was %s)" % (fmt_nl(exp_r), bar5[0][1:5] if bar5 else None))
     check(len(bar5) == 1 and bar5[0][5] == "%.1f%%" % (exp_r / cost_r * 100), "refine ROI %.1f%%" % (exp_r / cost_r * 100))
     check(len(bar5) == 1 and bar5[0][6] == "20", "craft/refine: één volumegetal voor de verkoopplek (was %s)" % (bar5[0][6] if bar5 else None))
     pot_exp = "{:,}".format(round((15000 * 0.96 - cost_r) * 20)).replace(",", ".")

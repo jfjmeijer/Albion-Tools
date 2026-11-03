@@ -207,6 +207,20 @@ for kind, r in res.items():
             rec["rx"] = rx
     out.append(rec)
 
+# ---------- craftcategorie (voor de bonusstad) ----------
+REFINE_CC = {"METALBAR": "ore", "PLANKS": "wood", "CLOTH": "fiber", "LEATHER": "hide", "STONEBLOCK": "rock"}
+for rec in out:
+    if rec.get("f") == "L":
+        if rec["b"] in REFINE_CC:
+            rec["cc"] = REFINE_CC[rec["b"]]
+        continue
+    for tier in range(2, 9):
+        node = nodes.get("T%d_%s" % (tier, rec["b"]))
+        if node and node.get("@craftingcategory"):
+            rec["cc"] = node["@craftingcategory"]
+            break
+print("bases with crafting category:", sum(1 for r in out if r.get("cc")), "of", len(out))
+
 # ---------- gewichten per tier (kg), voor winst per kg ----------
 wmiss = 0
 for rec in out:
@@ -229,7 +243,12 @@ payload = json.dumps(out, separators=(",", ":"), ensure_ascii=True)
 tpl_html = open(template_path, encoding="utf-8").read()
 if "__ITEMDATA__" not in tpl_html:
     raise SystemExit("placeholder missing")
-html = tpl_html.replace("__ITEMDATA__", payload)
+import os
+bonus_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "craftingbonus.json")
+bonus = json.load(open(bonus_path, encoding="utf-8"))
+if "__CRAFTBONUS__" not in tpl_html:
+    raise SystemExit("craftbonus placeholder missing")
+html = tpl_html.replace("__ITEMDATA__", payload).replace("__CRAFTBONUS__", json.dumps(bonus, separators=(",", ":"), ensure_ascii=True))
 open(out_path, "w", encoding="utf-8").write(html)
 
 cats = defaultdict(int)
