@@ -273,7 +273,7 @@ with sync_playwright() as p:
     sample[0]["sell_price_min"] = 100000
     sample[1]["buy_price_max"] = 130000
     page3.click("#modeBm")
-    page3.click("details summary")
+    page3.click("details:has(#paste) summary")
     page3.fill("#paste", json.dumps(sample))
     page3.click("#pasteBtn")
     sw = find(page3, "Broadsword")

@@ -163,6 +163,10 @@ td.pos{color:var(--good);font-weight:600} td.neg{color:var(--bad);font-weight:60
 .del.confirm{border-color:var(--bad);color:var(--bad)}
 .syncnote{font-size:12px;color:var(--muted);margin:0 0 10px}
 .syncnote.err{color:var(--bad)}
+.syncnote.ok{color:var(--good)}
+.howto{border-top:0;padding-top:0;margin:0 0 4px}
+.howto ol{margin:8px 0 0;padding-left:18px;font-size:12.5px;color:var(--muted)}
+.howto li{margin-bottom:5px}
 .lg-table table{min-width:640px}
 
 </style>
@@ -197,6 +201,23 @@ td.pos{color:var(--good);font-weight:600} td.neg{color:var(--bad);font-weight:60
       </select>
     </label>
     <label class="check"><input type="checkbox" id="premium"><span>Premium actief <small style="color:var(--muted)">(verkoopbelasting 4% in plaats van 8%)</small></span></label>
+  </div>
+
+  <div class="group">
+    <h2>Eigen data (privé)</h2>
+    <label class="check"><input type="checkbox" id="localOn"><span>Gebruik live data van mijn pc <small style="color:var(--muted)">(Data Client + hulpprogramma)</small></span></label>
+    <p class="syncnote" id="localStatus">Uit.</p>
+    <details class="howto">
+      <summary>Hoe stel ik dit in?</summary>
+      <ol>
+        <li>Installeer de <a href="https://www.albion-online-data.com/client" target="_blank" rel="noopener">Albion Data Client</a> (Windows-installer).</li>
+        <li>Zet de automatische start van de client uit (Taakplanner → taak “Albion Data Client” → Uitschakelen), anders uploadt hij nog openbaar.</li>
+        <li>Download <a href="https://github.com/jfjmeijer/Albion-Tools/raw/main/helper/albion-tools-helper.zip">albion-tools-helper.zip</a> en pak het uit, bijvoorbeeld in Documenten.</li>
+        <li>Dubbelklik <b>start-albion-prive.bat</b> vóór je gaat spelen. Dat start het hulpprogramma en de client, die nu alleen naar je eigen pc stuurt.</li>
+        <li>Vink hierboven “Gebruik live data van mijn pc” aan. Geeft je browser een melding over je lokale netwerk, klik dan op Toestaan.</li>
+        <li>Open in Albion de markt of Black Market; binnen ±15 seconden zie je de prijzen en aantallen hier.</li>
+      </ol>
+    </details>
   </div>
 
   <div class="group">
@@ -457,7 +478,7 @@ const S = {
   rrr:"best", focus:false, rrrCustom:40, stationFee:0,
   orderSell:new Set([BM, ...CITIES]),
   plBudget:1000000, plKg:0, plPct:0.5, plMax:5, plRoute:"auto",
-  q:"", showAll:false, limit:100, volAuto:true, minVol:0, volN:200,
+  q:"", showAll:false, limit:100, volAuto:true, minVol:0, volN:200, local:false,
   routeSell:new Set([BM, ...CITIES])
 };
 let sort = {k:"profit", dir:-1};
@@ -489,6 +510,7 @@ function loadSettings(){
     if(["bm", "city", "craft", "routes", "orders"].includes(j.mode)) S.mode = j.mode;
     if(Array.isArray(j.orderSell)) S.orderSell = new Set(j.orderSell.filter(c => CITIES.includes(c) || c === BM));
     if(typeof j.focus === "boolean") S.focus = j.focus;
+    if(typeof j.local === "boolean") S.local = j.local;
     for(const k of ["plBudget", "plKg", "plMax"]) if(Number.isFinite(j[k]) && j[k] >= 0) S[k] = j[k];
     if([0.25, 0.5, 1].includes(j.plPct)) S.plPct = j.plPct;
     if(typeof j.plRoute === "string") S.plRoute = j.plRoute;
@@ -704,8 +726,20 @@ function ingest(arr){
     if(!o){ o = Object.create(null); store.set(key, o); }
     const rec = o[city] || (o[city] = {sell:null, sellT:null, buy:null, buyT:null});
     const s = Number(r.sell_price_min) || 0, b = Number(r.buy_price_max) || 0;
-    if(s > 0){ rec.sell = s; rec.sellT = parseDate(r.sell_price_min_date); }
-    if(b > 0){ rec.buy = b; rec.buyT = parseDate(r.buy_price_max_date); }
+    const local = r.source === "local";
+    // de nieuwste prijs wint (eigen data van je pc is meestal het nieuwst)
+    if(s > 0){
+      const t = parseDate(r.sell_price_min_date);
+      if(!rec.sell || rec.sellT == null || (t != null && t >= rec.sellT)){
+        rec.sell = s; rec.sellT = t; rec.sellAmt = local ? Number(r.sell_amount) || null : null; rec.sellLocal = local;
+      }
+    }
+    if(b > 0){
+      const t = parseDate(r.buy_price_max_date);
+      if(!rec.buy || rec.buyT == null || (t != null && t >= rec.buyT)){
+        rec.buy = b; rec.buyT = t; rec.buyAmt = local ? Number(r.buy_amount) || null : null; rec.buyLocal = local;
+      }
+    }
     n++;
   }
   return n;
@@ -744,6 +778,7 @@ async function scan(){
   setBusy(false); hideBarSoon();
   if(fatal){ setStatus(fatal, "err"); render(); return; }
   lastScan = Date.now();
+  if(S.local) await mergeLocal(0);
   render();
   let msg, cls = "ok";
   if(aborted){ msg = "Gestopt. Je ziet de tussentijdse resultaten."; cls = ""; }
@@ -751,6 +786,50 @@ async function scan(){
   else msg = "Klaar: " + urls.length + " verzoeken verwerkt.";
   if(S.volAuto && !aborted && store.size) await fetchVolumes(msg, cls);
   else setStatus(msg, cls);
+}
+
+/* ---------- Eigen data van je pc (hulpprogramma) ---------- */
+const LOCAL_URL = "http://127.0.0.1:47800";
+const LOCAL = {since:0, timer:null, ok:false, renderT:null};
+function localStatus(msg, cls){ const e = $("localStatus"); e.textContent = msg; e.className = "syncnote" + (cls ? " " + cls : ""); }
+async function mergeLocal(since){
+  try{
+    const res = await fetch(LOCAL_URL + "/prices?since=" + (since || 0), {cache:"no-store"});
+    if(!res.ok) throw new Error("HTTP " + res.status);
+    const n = ingest(await res.json());
+    LOCAL.ok = true;
+    return n;
+  }catch(e){ LOCAL.ok = false; return -1; }
+}
+async function pollLocal(first){
+  if(!S.local) return;
+  let st = null;
+  try{
+    const res = await fetch(LOCAL_URL + "/status", {cache:"no-store"});
+    st = res.ok ? await res.json() : null;
+  }catch(e){}
+  if(!st || !st.ok){
+    LOCAL.ok = false;
+    localStatus("Niet verbonden. Draait start-albion-prive.bat? Geef je browser toestemming voor je lokale netwerk als hij erom vraagt.", "err");
+  }else{
+    const t0 = Date.now();
+    const n = await mergeLocal(first ? 0 : LOCAL.since);
+    if(n >= 0) LOCAL.since = t0 - 5000;
+    const last = st.lastUpload ? Date.parse(st.lastUpload) : null;
+    const unknown = Object.keys(st.unknownLocations || {});
+    localStatus("Verbonden · " + (st.orders || 0).toLocaleString("nl-NL") + " orders van je pc" +
+      (last ? " · laatste upload " + fmtAge(last) + " geleden" : " · nog niets ontvangen: open een markt in Albion") +
+      (unknown.length ? " · onbekende plekken: " + unknown.slice(0, 3).join(", ") : ""), "ok");
+    if(n > 0){ clearTimeout(LOCAL.renderT); LOCAL.renderT = setTimeout(() => { if(!scanning) render(); }, 300); }
+  }
+  clearTimeout(LOCAL.timer);
+  LOCAL.timer = setTimeout(() => pollLocal(false), 15000);
+}
+function setLocal(on){
+  S.local = on; saveSettings();
+  clearTimeout(LOCAL.timer);
+  if(on){ localStatus("Verbinden…"); pollLocal(true); }
+  else{ localStatus("Uit. Je gebruikt alleen openbare data."); LOCAL.ok = false; }
 }
 
 /* ---------- Verkoopvolume (history) ---------- */
@@ -997,7 +1076,8 @@ function computeFlips(){
         if(S.maxRoi > 0 && roi > S.maxRoi) continue;
         const kg = p.it.wt ? p.it.wt[p.tier - 2] || 0 : 0;
         found.push({id, quality, name, tier:p.tier, ench:p.e, from:a, to:b, buy:bp, buyT:bt, sell:sp, sellT:st, profit, roi, kg, cat:p.it.c,
-          costUnit:cost, buyOrder:buyFee > 0, sellOrder:!instantSell});
+          costUnit:cost, buyOrder:buyFee > 0, sellOrder:!instantSell,
+          buyQty:!orders && S.buyMethod === "instant" ? A.sellAmt || null : null, sellQty:instantSell ? B.buyAmt || null : null});
       }
     }
     if(!found.length) continue;
@@ -1170,10 +1250,11 @@ function volCell(r){
   td.title = sides.map(volTitle).join("\n");
   return td;
 }
-function ageSpan(t){
+function ageSpan(t, qty){
   const s = document.createElement("span");
   s.className = "age " + ageClass(t);
-  s.textContent = fmtAge(t) + " oud";
+  s.textContent = fmtAge(t) + " oud" + (qty ? " · " + qty.toLocaleString("nl-NL") + " st" : "");
+  if(qty) s.title = qty + " stuks tegen deze prijs (eigen data van je pc)";
   return s;
 }
 async function copyText(text, btn){
@@ -1233,8 +1314,8 @@ function render(){
       const ar = document.createElement("span"); ar.className = "arrow"; ar.textContent = "→"; td2.appendChild(ar);
       td2.appendChild(document.createTextNode(r.to));
     }
-    const td3 = document.createElement("td"); td3.className = "num"; td3.textContent = fmt(r.buy); td3.appendChild(ageSpan(r.buyT));
-    const td4 = document.createElement("td"); td4.className = "num"; td4.textContent = fmt(r.sell); td4.appendChild(ageSpan(r.sellT));
+    const td3 = document.createElement("td"); td3.className = "num"; td3.textContent = fmt(r.buy); td3.appendChild(ageSpan(r.buyT, r.buyQty));
+    const td4 = document.createElement("td"); td4.className = "num"; td4.textContent = fmt(r.sell); td4.appendChild(ageSpan(r.sellT, r.sellQty));
     const td5 = document.createElement("td"); td5.className = "num profit"; td5.textContent = "+" + fmt(r.profit);
     const td6 = document.createElement("td"); td6.className = "num"; td6.textContent = r.roi.toFixed(1) + "%";
     const tdV = volCell(r);
@@ -1435,6 +1516,9 @@ function init(){
   $("pasteBtn").addEventListener("click", pasteJson);
 
   initPlanner();
+  $("localOn").checked = S.local;
+  $("localOn").addEventListener("change", e => setLocal(e.target.checked));
+  if(S.local) setLocal(true); else localStatus("Uit. Je gebruikt alleen openbare data.");
   updateEstimate();
   render();
 }
@@ -2319,7 +2403,9 @@ function planLoad(rows, budget, kgCap, pct, maxNoVol){
   for(const r of rows){
     if(!(r.profit > 0)) continue;
     const cost = r.costUnit != null ? r.costUnit : r.buy;
-    const cap = r.vEff != null ? Math.floor(r.vEff * pct) : maxNoVol;
+    const qtyKnown = Math.min(r.buyQty || Infinity, r.sellQty || Infinity);
+    let cap = r.vEff != null ? Math.floor(r.vEff * pct) : Number.isFinite(qtyKnown) ? Infinity : maxNoVol;
+    cap = Math.min(cap, qtyKnown);
     if(cap < 1 || !(cost > 0)) continue;
     const kg = r.kg || 0;
     let score;
@@ -2413,7 +2499,8 @@ function renderPlanner(rows){
   btns.appendChild(msg);
   out.appendChild(btns);
   out.appendChild(el("p", "est", "Volgorde: de meeste winst per silver" + (S.plKg > 0 ? " en per kg" : "") + ". Per item maximaal " +
-    Math.round(S.plPct * 100) + "% van wat er per dag verkocht wordt, of " + S.plMax + " stuks als het volume onbekend is."));
+    Math.round(S.plPct * 100) + "% van wat er per dag verkocht wordt, of " + S.plMax + " stuks als het volume onbekend is." +
+    (S.local ? " Met eigen data ook nooit meer dan er tegen de beste prijs te koop staat of gevraagd wordt." : "")));
 }
 function initPlanner(){
   $("plBudget").value = S.plBudget ? fmt(S.plBudget) : "";

@@ -388,6 +388,41 @@ with sync_playwright() as p:
     check("95.001" not in lst.split("Verkopen")[0], "gevulde order hoeft niet meer gekocht te worden")
     check(not err4, "geen JS-fouten bij planner/orders: %s" % err4)
 
+    # ---------- eigen data van de pc (hulpprogramma, nagebootst) ----------
+    HIST[("T5_MAIN_SWORD", "Lymhurst")] = 14
+    SPECIAL["T5_MAIN_SWORD"]["Lymhurst"] = dict(sell=100000, buy=90000)
+    now_iso = iso(0)
+    LOCAL_RECS = [{"item_id": "T5_MAIN_SWORD", "city": "Black Market", "quality": 1, "sell_price_min": 0, "sell_price_min_date": ZERO,
+                   "sell_amount": 0, "buy_price_max": 135000, "buy_price_max_date": now_iso, "buy_amount": 3, "source": "local"}]
+    def local(route):
+        url = route.request.url
+        body = {"ok": True, "orders": 3, "lastUpload": now_iso + "Z", "unknownLocations": {}} if "/status" in url else LOCAL_RECS
+        route.fulfill(status=200, body=json.dumps(body), headers={"access-control-allow-origin": "*", "content-type": "application/json"})
+    ctx5 = browser.new_context(locale="nl-NL", viewport={"width": 1400, "height": 950})
+    p5 = ctx5.new_page()
+    err5 = []
+    p5.on("pageerror", lambda e: err5.append(str(e)))
+    p5.route(re.compile(r"albion-online-data\.com/api/v2/stats/prices/"), prices)
+    p5.route(re.compile(r"albion-online-data\.com/api/v2/stats/history/"), history)
+    p5.goto("file://" + TEST_COPY)
+    p5.evaluate("(() => { const c = document.getElementById('premium'); if(!c.checked){ c.click(); } })()")
+    check("Uit" in p5.inner_text("#localStatus"), "eigen data staat standaard uit")
+    p5.check("#localOn")
+    p5.wait_for_function("document.getElementById('localStatus').textContent.startsWith('Niet verbonden')", timeout=10000)
+    check(True, "zonder hulpprogramma: ‘Niet verbonden’")
+    p5.route(re.compile(r"127\.0\.0\.1:47800/"), local)
+    p5.uncheck("#localOn"); p5.check("#localOn")
+    p5.wait_for_function("document.getElementById('localStatus').textContent.startsWith('Verbonden')", timeout=10000)
+    check("3 orders" in p5.inner_text("#localStatus"), "status: verbonden met 3 orders")
+    p5.click("#scanBtn"); p5.wait_for_function(DONE, timeout=90000)
+    sw = [r for r in rows(p5) if "Broadsword" in r[0]]
+    print("met eigen data:", sw)
+    check(sw and sw[0][3].startswith("135.000") and "3 st" in sw[0][3], "eigen (nieuwere) BM-prijs 135.000 met aantal 3 wint van openbare 130.000")
+    check(sw and sw[0][4] == "+29.600", "winst met eigen prijs: +29.600 (was %s)" % (sw[0][4] if sw else None))
+    p5.click("#planner summary"); p5.fill("#plBudget", "10m"); p5.press("#plBudget", "Tab")
+    check("3 stuks" in p5.inner_text("#plOut"), "planner begrenst op de 3 stuks die de BM vraagt")
+    check(not err5, "geen JS-fouten met eigen data: %s" % err5)
+
     browser.close()
 
 print("\nFAILURES:", len(failures))

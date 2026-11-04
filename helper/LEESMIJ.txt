@@ -1,0 +1,21 @@
+Albion Tools - prive data
+
+Wat zit erin
+- albion-helper.exe      : klein hulpprogramma. Ontvangt de marktdata van de Albion Data Client
+                            op je eigen pc (http://127.0.0.1:47800) en geeft die aan de Albion Tools-site.
+- start-albion-prive.bat : start het hulpprogramma en de Albion Data Client met
+                            -i http://127.0.0.1:47800, zodat er NIETS naar de openbare database gaat.
+
+Gebruik
+1. Installeer de Albion Data Client (https://www.albion-online-data.com/client).
+2. Zet de automatische start van de client uit:
+   Taakplanner > taak "Albion Data Client" > rechtermuisknop > Uitschakelen.
+   Anders start hij ook op de normale manier en uploadt hij openbaar.
+3. Dubbelklik start-albion-prive.bat voordat je gaat spelen.
+4. Vink op https://jfjmeijer.github.io/Albion-Tools/ bij "Eigen data (prive)" het vakje aan.
+5. Open in Albion de markt of de Black Market. Het hulpprogramma toont hoeveel orders er binnenkomen.
+
+Windows waarschuwt mogelijk ("Windows heeft uw pc beveiligd") omdat het programma niet
+ondertekend is: kies "Meer info" > "Toch uitvoeren". De broncode staat in de map helper op GitHub.
+
+De data wordt bewaard in albion-helper-data.json naast het programma (maximaal 24 uur oud).
