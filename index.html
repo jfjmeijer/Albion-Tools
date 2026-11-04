@@ -264,7 +264,18 @@ td.pos{color:var(--good);font-weight:600} td.neg{color:var(--bad);font-weight:60
       <button type="button" id="modeOrders" aria-pressed="false">Buy orders</button>
       <button type="button" id="modeCraft" aria-pressed="false">Craften</button>
     </div>
-    <div class="field"><span id="buyLabel">Koop in</span><div class="chips" id="buyCities"></div></div>
+    <label class="field hidden" id="matModeWrap"><span>Waar koop je je materialen?</span>
+      <select id="matMode">
+        <option value="cheapest">Per materiaal de goedkoopste stad (van de aangevinkte)</option>
+        <option value="onecity">Alles in één stad: de goedkoopste (van de aangevinkte)</option>
+        <option value="craftcity">Alles in de stad waar je craft (niets vervoeren)</option>
+        <option value="Caerleon">Alles in Caerleon</option><option value="Bridgewatch">Alles in Bridgewatch</option>
+        <option value="Fort Sterling">Alles in Fort Sterling</option><option value="Lymhurst">Alles in Lymhurst</option>
+        <option value="Martlock">Alles in Martlock</option><option value="Thetford">Alles in Thetford</option>
+        <option value="Brecilien">Alles in Brecilien</option>
+      </select>
+    </label>
+    <div class="field" id="buyCitiesWrap"><span id="buyLabel">Koop in</span><div class="chips" id="buyCities"></div></div>
     <div class="field" id="sellCitiesWrap"><span id="sellLabel">Verkoop in</span><div class="chips" id="sellCities"></div></div>
     <label class="field"><span id="buyMethodLabel">Hoe koop je in?</span>
       <select id="buyMethod">
@@ -559,7 +570,7 @@ const S = {
   rrr:"best", focus:false, rrrCustom:40, stationFee:0,
   orderSell:new Set([BM, ...CITIES]),
   plBudget:1000000, plKg:0, plPct:0.5, plMax:5, plRoute:"auto",
-  q:"", showAll:false, limit:100, volAuto:true, minVol:0, volN:200, local:false, useAvg:false, bmSell:"instant", hideOut:false, outPct:0.4,
+  q:"", showAll:false, limit:100, volAuto:true, minVol:0, volN:200, local:false, useAvg:false, bmSell:"instant", hideOut:false, outPct:0.4, matMode:"cheapest",
   routeSell:new Set([BM, ...CITIES])
 };
 let sort = {k:"profit", dir:-1};
@@ -595,6 +606,7 @@ function loadSettings(){
     if(typeof j.useAvg === "boolean") S.useAvg = j.useAvg;
     if(j.bmSell === "instant" || j.bmSell === "order") S.bmSell = j.bmSell;
     if(typeof j.hideOut === "boolean") S.hideOut = j.hideOut;
+    if(["cheapest", "onecity", "craftcity", ...CITIES].includes(j.matMode)) S.matMode = j.matMode;
     if([0.25, 0.4, 0.75, 1].includes(j.outPct)) S.outPct = j.outPct;
     for(const k of ["plBudget", "plKg", "plMax"]) if(Number.isFinite(j[k]) && j[k] >= 0) S[k] = j[k];
     if([0.25, 0.5, 1].includes(j.plPct)) S.plPct = j.plPct;
@@ -746,7 +758,7 @@ function buildJobs(){
     for(const p of prods) for(const c of recipeFor(p.it, p.tier, p.e)) mats.add(c[0]);
     return [
       {ids:prods.map(p => p.id), locs:[...S.craftSell], q:"1"},
-      {ids:[...mats], locs:[...S.matCities], q:"1"}
+      {ids:[...mats], locs:matLocs(S.matMode), q:"1"}
     ];
   }
   const locs = S.mode === "bm" ? [BM, ...S.buyCities]
@@ -754,6 +766,11 @@ function buildJobs(){
     : S.mode === "orders" ? [...new Set([...S.buyCities, ...S.orderSell])]
     : [...new Set([...S.buyCities, ...S.sellCities])];
   return [{ids:prods.map(p => p.id), locs, q:S.quality}];
+}
+function matLocs(mm){
+  if(mm === "craftcity") return [...CITIES];
+  if(CITIES.includes(mm)) return [mm];
+  return [...S.matCities];
 }
 function urlsForJob(job){
   if(!job.ids.length || !job.locs.length) return [];
@@ -836,7 +853,7 @@ async function scan(){
   if(S.mode === "routes" || S.mode === "orders"){
     if(!S.buyCities.size || !(S.mode === "routes" ? S.routeSell : S.orderSell).size){ setStatus("Kies minstens één stad om in te kopen en één plek om te verkopen.", "err"); return; }
   }else if(S.mode === "craft"){
-    if(!S.matCities.size || !S.craftSell.size){ setStatus("Kies minstens één stad voor materialen en één plek om te verkopen.", "err"); return; }
+    if((!S.matCities.size && (S.matMode === "cheapest" || S.matMode === "onecity")) || !S.craftSell.size){ setStatus("Kies minstens één stad voor materialen en één plek om te verkopen.", "err"); return; }
   }else if(!S.buyCities.size || (S.mode === "city" && !S.sellCities.size)){
     setStatus("Kies minstens één stad om in te kopen" + (S.mode === "city" ? " en één om in te verkopen" : "") + ".", "err"); return;
   }
@@ -1204,12 +1221,13 @@ function computeCrafts(){
   const fresh = freshFn();
   const needle = S.q.trim().toLowerCase();
   const matCache = new Map();
-  function bestMat(id){
-    if(matCache.has(id)) return matCache.get(id);
+  function bestMat(id, cities){
+    const ck = id + "|" + cities.join(",");
+    if(matCache.has(ck)) return matCache.get(ck);
     let best = null;
     const o = store.get(id + "|1");
     if(o){
-      for(const c of S.matCities){
+      for(const c of cities){
         const R = o[c]; if(!R) continue;
         const raw = S.buyMethod === "instant" ? R.sell : R.buy;
         const t = S.buyMethod === "instant" ? R.sellT : R.buyT;
@@ -1218,8 +1236,21 @@ function computeCrafts(){
         if(!best || eff < best.eff) best = {eff, raw, city:c, t};
       }
     }
-    matCache.set(id, best);
+    matCache.set(ck, best);
     return best;
+  }
+  // materialen voor één recept uit een lijst steden (per materiaal de goedkoopste daarvan)
+  function matsFrom(rec, rrr, cities){
+    const lines = [];
+    let matCost = 0, oldest = Infinity;
+    for(const [cid, n, ret] of rec){
+      const b = bestMat(cid, cities);
+      if(!b) return null;
+      const cost = b.eff * n * (ret ? (1 - rrr) : 1);
+      matCost += cost; oldest = Math.min(oldest, b.t);
+      lines.push({id:cid, n, ret, raw:b.raw, city:b.city, t:b.t, cost, name:compName(cid)});
+    }
+    return {lines, matCost, oldest};
   }
   const rows = [];
   let missing = 0;
@@ -1238,17 +1269,17 @@ function computeCrafts(){
     for(const t of S.craftSell){ const B = o[t]; if(B && (B.buy || B.sell)) { hasSell = true; break; } }
     if(!hasSell) continue;
     const rr = rrrFor(p.it), rrr = rr.rrr;
-    const lines = [];
-    let matCost = 0, oldest = Infinity, complete = true;
-    for(const [cid, n, ret] of rec){
-      const b = bestMat(cid);
-      if(!b){ complete = false; break; }
-      const eff = ret ? (1 - rrr) : 1;
-      const cost = b.eff * n * eff;
-      matCost += cost; oldest = Math.min(oldest, b.t);
-      lines.push({id:cid, n, ret, raw:b.raw, city:b.city, t:b.t, cost, name:compName(cid)});
-    }
-    if(!complete){ missing++; continue; }
+    // waar koop je de materialen? (S.matMode)
+    const mm = S.matMode;
+    let options;
+    if(mm === "craftcity" && rr.city && CITIES.includes(rr.city)) options = [[rr.city]];
+    else if(mm === "onecity" || mm === "craftcity") options = [...S.matCities].map(c => [c]);
+    else if(CITIES.includes(mm)) options = [[mm]];
+    else options = [[...S.matCities]];
+    let pick = null;
+    for(const cities of options){ const m = matsFrom(rec, rrr, cities); if(m && (!pick || m.matCost < pick.matCost)) pick = m; }
+    if(!pick){ missing++; continue; }
+    const {lines, matCost, oldest} = pick;
     const fee = itemValue(p.it, p.tier, p.e, rec) * 0.1125 * S.stationFee / 100;
     const cost = matCost + fee;
     if(S.maxBuy > 0 && cost > S.maxBuy) continue;
@@ -1581,6 +1612,8 @@ function applyMode(){
   $("bmSellWrap").classList.toggle("hidden", m === "city" || m === "orders");
   $("buyMethod").closest("label").classList.toggle("hidden", m === "orders");
   $("craftBox").classList.toggle("hidden", m !== "craft");
+  $("matModeWrap").classList.toggle("hidden", m !== "craft");
+  $("buyCitiesWrap").classList.toggle("hidden", m === "craft" && S.matMode !== "cheapest" && S.matMode !== "onecity");
   $("modeHint").textContent = HINTS[m];
   $("buyMethodLabel").textContent = m === "craft" ? "Hoe koop je materialen?" : "Hoe koop je in?";
   $("sellMethodLabel").textContent = m === "craft" ? "Hoe verkoop je in een stad?" : "Hoe verkoop je?";
@@ -1629,6 +1662,8 @@ function init(){
   $("volN").addEventListener("change", e => { S.volN = +e.target.value; updateVolEst(); changed(); });
   $("server").addEventListener("change", e => { S.server = e.target.value; volStore.clear(); changed(true); });
   $("volAuto").addEventListener("change", e => { S.volAuto = e.target.checked; changed(); });
+  $("matMode").value = S.matMode;
+  $("matMode").addEventListener("change", e => { S.matMode = e.target.value; applyMode(); changed(true); });
   $("hideOut").checked = S.hideOut; $("outPct").value = String(S.outPct);
   $("hideOut").addEventListener("change", e => { S.hideOut = e.target.checked; changed(); });
   $("outPct").addEventListener("change", e => { S.outPct = +e.target.value; changed(); });
@@ -2271,7 +2306,7 @@ function cartLoad(){
 }
 function currentSpec(){
   return {buyMethod:S.buyMethod, sellMethod:S.sellMethod, bmSell:S.bmSell, rrr:S.rrr, focus:S.focus,
-    rrrCustom:S.rrrCustom, stationFee:S.stationFee, useAvg:S.useAvg};
+    rrrCustom:S.rrrCustom, stationFee:S.stationFee, useAvg:S.useAvg, matMode:S.matMode};
 }
 function cartKey(r){ return [S.mode, r.id, r.quality, r.from, r.to].join("|"); }
 function inCart(r){ const k = cartKey(r); return CART.items.some(x => x.key === k); }
@@ -2874,7 +2909,7 @@ function favToggle(r, btn){
   if(i >= 0) FAV.list.splice(i, 1);
   else FAV.list.push({key:k, mode:S.mode, itemId:r.id, quality:r.quality, name:r.name, tier:r.tier, ench:r.ench, from:r.from, to:r.to,
     buyMethod:S.buyMethod, sellMethod:S.sellMethod, bmSell:S.bmSell, rrr:S.rrr, focus:S.focus, rrrCustom:S.rrrCustom,
-    stationFee:S.stationFee, useAvg:S.useAvg, saved:Date.now(), lastProfit:r.profit});
+    stationFee:S.stationFee, useAvg:S.useAvg, matMode:S.matMode, saved:Date.now(), lastProfit:r.profit});
   favSave(); updateFavUi();
   if(btn) setFavBtn(btn, i < 0);
 }
@@ -2900,7 +2935,7 @@ function evalFav(f){
   if(!p) return null;
   const base = {mode:f.mode, buyMethod:f.buyMethod || "instant", sellMethod:f.sellMethod || "instant", bmSell:f.bmSell || "instant",
     rrr:f.rrr || "best", focus:!!f.focus, rrrCustom:Number.isFinite(f.rrrCustom) ? f.rrrCustom : S.rrrCustom,
-    stationFee:Number.isFinite(f.stationFee) ? f.stationFee : S.stationFee, useAvg:!!f.useAvg,
+    stationFee:Number.isFinite(f.stationFee) ? f.stationFee : S.stationFee, useAvg:!!f.useAvg, matMode:f.matMode || "cheapest",
     q:"", minProfit:-Infinity, minRoi:-Infinity, maxRoi:0, maxBuy:0, art:"all", showAll:true,
     cats:new Set([p.it.c]), tiers:new Set([p.tier]), ench:new Set([p.e])};
   let snap = null;
@@ -2926,7 +2961,8 @@ async function checkFavs(){
     jobs.push({ids:[...new Set(crafts.map(f => f.itemId))], locs:[...new Set(crafts.map(f => f.to))], q:"1"});
     const mats = new Set();
     for(const f of crafts){ const p = parseId(f.itemId); const rec = p && recipeFor(p.it, p.tier, p.e); if(rec) for(const c of rec) mats.add(c[0]); }
-    if(mats.size) jobs.push({ids:[...mats], locs:[...S.matCities], q:"1"});
+    const mlocs = [...new Set(crafts.flatMap(f => matLocs(f.matMode || "cheapest")))];
+    if(mats.size) jobs.push({ids:[...mats], locs:mlocs, q:"1"});
   }
   const urls = jobs.flatMap(urlsForJob);
   setBusy(true); ctrl = new AbortController();

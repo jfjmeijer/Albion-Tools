@@ -613,6 +613,45 @@ with sync_playwright() as p:
     p7.screenshot(path=SHOT_DIR + "/inzicht.png", full_page=True)
     check(not err7, "geen JS-fouten bij uitschieters/alarm/inzicht: %s" % err7)
 
+    # ---------- waar koop je je craftmaterialen ----------
+    SPECIAL["T5_MAIN_SWORD"]["Black Market"] = dict(sell=0, buy=260000)
+    SPECIAL["T5_METALBAR"] = {"Lymhurst": dict(sell=10000, buy=0), "Martlock": dict(sell=12000, buy=0)}
+    SPECIAL["T5_LEATHER"] = {"Martlock": dict(sell=5000, buy=0), "Lymhurst": dict(sell=7000, buy=0)}
+    ctx8 = browser.new_context(locale="nl-NL", viewport={"width": 1400, "height": 950})
+    p8 = ctx8.new_page()
+    err8 = []
+    p8.on("pageerror", lambda e: err8.append(str(e)))
+    p8.route(re.compile(r"albion-online-data\.com/api/v2/stats/prices/"), prices)
+    p8.route(re.compile(r"albion-online-data\.com/api/v2/stats/history/"), history)
+    p8.goto("file://" + TEST_COPY)
+    p8.click("#modeCraft")
+    check(p8.is_visible("#matMode"), "craftmodus: keuze waar je materialen koopt")
+    for tt in ["T4", "T6"]:
+        p8.locator("#tiers button", has_text=tt).first.click()
+    p8.locator("#ench button", has_text=".1").first.click(); p8.locator("#ench button", has_text=".2").first.click()
+    p8.locator("#ench button", has_text=".3").first.click(); p8.locator("#ench button", has_text=".4").first.click()
+    p8.fill("#minProfit", "0"); p8.fill("#q", "expert's broadsword")
+    p8.click("#scanBtn"); p8.wait_for_function(DONE, timeout=90000)
+    k = 1 / 1.33
+    def cost_cell():
+        rr = [r for r in rows(p8) if r[0].startswith("T5E")]
+        return rr[0][2].split(" ")[0] if rr else None
+    fmtc = lambda v: "{:,}".format(round(v)).replace(",", ".")
+    check(cost_cell() == fmtc(200000 * k), "goedkoopste per materiaal: %s (was %s)" % (fmtc(200000 * k), cost_cell()))
+    p8.select_option("#matMode", "onecity")
+    check(cost_cell() == fmtc(216000 * k), "alles in één stad (Lymhurst): %s (was %s)" % (fmtc(216000 * k), cost_cell()))
+    p8.select_option("#matMode", "Martlock")
+    check(not p8.is_visible("#buyCities"), "bij een vaste stad zijn de stadknoppen verborgen")
+    p8.click("#scanBtn"); p8.wait_for_function(DONE, timeout=90000)
+    check(cost_cell() == fmtc(232000 * k), "alles in Martlock: %s (was %s)" % (fmtc(232000 * k), cost_cell()))
+    p8.select_option("#matMode", "craftcity")
+    p8.click("#scanBtn"); p8.wait_for_function(DONE, timeout=90000)
+    check(cost_cell() == fmtc(216000 * k), "alles in de craftstad (Lymhurst voor zwaarden): %s (was %s)" % (fmtc(216000 * k), cost_cell()))
+    p8.locator("#tbody tr").first.locator(".recipe-btn").click()
+    det = p8.inner_text("tr.detail")
+    check("Lymhurst" in det and "Martlock" not in det, "recept: alle materialen uit Lymhurst")
+    check(not err8, "geen JS-fouten bij materiaalkeuze: %s" % err8)
+
     browser.close()
 
 print("\nFAILURES:", len(failures))

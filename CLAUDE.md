@@ -14,6 +14,7 @@ UI-tekst is Nederlands. Joris wil korte, scanbare uitleg.
 - Craftbonussen per stad: `tools/craftingbonus.json` (uit ao-bin-dumps `craftingmodifiers.json`, clusters 0000 Thetford, 1000 Lymhurst, 2000 Bridgewatch, 3004 Martlock, 4000 Fort Sterling, 3003 Caerleon, 5000 Brecilien). RRR = 1 − 1/(1 + basis 0,18 + bonus itemsoort + focus 0,59). Items krijgen `cc` (craftingcategory).
 - Inzicht (tab `inzicht`, `albionInzicht.v1`): goudprijs (`/api/v2/stats/gold.json?count=720`), premium-check (omzet uit logregels met `rev`), winst per uur (logregels met `min`). Logregels hebben optioneel `min` en `rev` (compatibel met het oude formaat).
 - Prijsalarm: `FAV.alarm = {on, every}` + `alarm` per favoriet (winst per stuk) of batch (totaal); `alarmEval()` na Check alle en na eigen data; melding via Notification + toast.
+- Craftmaterialen: `S.matMode` = `cheapest` (per materiaal, uit `S.matCities`), `onecity` (goedkoopste stad voor het hele recept), `craftcity` (bonusstad van het item), of een vaste stad; `matLocs()` bepaalt waar materialen worden opgehaald. Zit ook in `spec` van favorieten/batches.
 - Uitschieters: rij krijgt `outlier` als de verkoopprijs > 7d-gem. × (1 + `S.outPct`); `S.hideOut` verbergt ze.
 - Nieuwe tool = nieuwe tab: een `<main id="view…">`, een knop in `.tabs` (data-view) en een sleutel in `VIEWS`.
 
