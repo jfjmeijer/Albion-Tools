@@ -111,6 +111,12 @@ input.bad{border-color:var(--bad)}
 .favbtn{background:none;border:1px solid var(--line);color:var(--muted);border-radius:6px;padding:1px 7px;font:inherit;font-size:13px;cursor:pointer;margin-right:4px}
 .favbtn.on{color:var(--accent);border-color:var(--accent)}
 .fav-na{color:var(--muted);font-size:12.5px}
+.batch{display:flex;flex-direction:column;gap:4px}
+.batch-name{font-weight:700;font-size:15px;background:transparent;border:1px solid transparent;padding:4px 6px;margin-left:-6px}
+.batch-name:hover,.batch-name:focus{border-color:var(--line);background:var(--panel2)}
+.batch-items{margin:2px 0 8px}
+.batch .btns{margin-bottom:4px}
+.batch .btn.primary{flex:0 0 auto}
 .fav-table{min-width:980px}
 td.neg{color:var(--bad);font-weight:600}
 .planner{margin:0;border-top:0;border-bottom:1px solid var(--line);padding:10px 16px}
@@ -2213,6 +2219,10 @@ function cartLoad(){
     CART.checks = j.checks && typeof j.checks === "object" ? j.checks : {};
   }catch(e){}
 }
+function currentSpec(){
+  return {buyMethod:S.buyMethod, sellMethod:S.sellMethod, bmSell:S.bmSell, rrr:S.rrr, focus:S.focus,
+    rrrCustom:S.rrrCustom, stationFee:S.stationFee, useAvg:S.useAvg};
+}
 function cartKey(r){ return [S.mode, r.id, r.quality, r.from, r.to].join("|"); }
 function inCart(r){ const k = cartKey(r); return CART.items.some(x => x.key === k); }
 function weightOf(id){ const p = parseId(id); return p && p.it.wt ? p.it.wt[p.tier - 2] || 0 : 0; }
@@ -2228,7 +2238,7 @@ function cartSnapshot(r){
     sellOrder:r.sellOrder != null ? r.sellOrder : !instantSell,
     craft:craft ? {rrr:r.craft.rrr, fee:r.craft.fee, city:r.craft.city || null, matOrder:S.buyMethod === "order",
       lines:r.craft.lines.map(l => ({id:l.id, name:l.name, n:l.n, ret:l.ret, raw:l.raw, city:l.city}))} : null,
-    t:Date.now()
+    spec:currentSpec(), t:Date.now()
   };
 }
 function cartToggle(r, btn){
@@ -2368,7 +2378,9 @@ function renderSelect(root, t){
   });
   const go = el("button", "btn primary", "Doorgaan → afvinklijst"); go.type = "button"; go.id = "cartGo";
   go.addEventListener("click", () => { CART.stage = "list"; cartSave(); renderCart(); window.scrollTo(0, 0); });
-  btns.append(clear, go);
+  const sb = el("button", "btn", "★ Bewaar als vaste batch"); sb.type = "button"; sb.className = "btn batch-save";
+  sb.addEventListener("click", () => saveCartAsBatch(sb));
+  btns.append(clear, sb, go);
   root.appendChild(btns);
 }
 function updateTotalsOnly(){
@@ -2459,7 +2471,9 @@ function renderList(root, t){
   back.addEventListener("click", () => { CART.stage = "select"; cartSave(); renderCart(); });
   const fin = el("button", "btn primary", "Batch afronden → logboek"); fin.type = "button"; fin.id = "cartFinish";
   fin.addEventListener("click", finishBatch);
-  btns.append(back, fin);
+  const saveB = el("button", "btn", "★ Bewaar als vaste batch"); saveB.type = "button"; saveB.className = "btn batch-save";
+  saveB.addEventListener("click", () => saveCartAsBatch(saveB));
+  btns.append(back, saveB, fin);
   root.appendChild(btns);
   updateProgress();
 }
@@ -2775,13 +2789,30 @@ function initOrders(){ ordLoad(); updateOrdersUi(); }
    Favorieten: vaste trade- en craftroutes
    ================================================================= */
 const FAV_KEY = "albionFavorieten.v1";
-const FAV = {list:[], checked:null, res:new Map(), busy:false};
-function favSave(){ try{ localStorage.setItem(FAV_KEY, JSON.stringify({list:FAV.list, checked:FAV.checked})); }catch(e){} }
+const FAV = {list:[], batches:[], checked:null, res:new Map(), busy:false};
+const allSpecs = () => FAV.list.concat(FAV.batches.flatMap(b => b.items));
+function specFromCart(x){
+  const sp = x.spec || currentSpec();
+  return {key:[x.mode, x.id, x.quality, x.from, x.to].join("|"), mode:x.mode, itemId:x.id, quality:x.quality, name:x.name,
+    tier:x.tier, ench:x.ench, from:x.from, to:x.to, ...sp, qty:x.qty};
+}
+function saveCartAsBatch(btn){
+  if(!CART.items.length) return;
+  const t = cartTotals();
+  const dests = [...new Set(CART.items.map(x => x.to === BM ? "Black Market" : x.to))].join(", ");
+  const name = CART.items.length === 1 ? CART.items[0].qty + "× " + itemLabel(CART.items[0]) + " → " + dests
+    : CART.items.length + " items (" + t.n + " stuks) → " + dests;
+  FAV.batches.push({id:newId(), name:name.slice(0, 80), items:CART.items.map(specFromCart), saved:Date.now(), lastProfit:t.profit});
+  favSave(); updateFavUi();
+  if(btn){ btn.textContent = "★ Bewaard in Favorieten"; btn.disabled = true; }
+}
+function favSave(){ try{ localStorage.setItem(FAV_KEY, JSON.stringify({list:FAV.list, batches:FAV.batches, checked:FAV.checked})); }catch(e){} }
 function favLoad(){
   try{
     const j = JSON.parse(localStorage.getItem(FAV_KEY) || "null");
     if(j && Array.isArray(j.list)) FAV.list = j.list.filter(f => f && f.key && f.itemId && f.mode);
     if(j && Number.isFinite(j.checked)) FAV.checked = j.checked;
+    if(j && Array.isArray(j.batches)) FAV.batches = j.batches.filter(b => b && b.id && Array.isArray(b.items) && b.items.length);
   }catch(e){}
 }
 function favKeyOf(r){ return [S.mode, r.id, r.quality, r.from, r.to].join("|"); }
@@ -2802,7 +2833,8 @@ function setFavBtn(btn, on){
   btn.setAttribute("aria-pressed", on ? "true" : "false");
 }
 function updateFavUi(){
-  $("favCount").textContent = FAV.list.length ? " (" + FAV.list.length + ")" : "";
+  const nFav = FAV.list.length + FAV.batches.length;
+  $("favCount").textContent = nFav ? " (" + nFav + ")" : "";
   if(currentView === "favorieten") renderFavs();
 }
 // rekent één favoriet door met dezelfde code als Markt, met de instellingen van toen hij bewaard werd
@@ -2831,9 +2863,10 @@ function evalFav(f){
 }
 async function checkFavs(){
   const msg = $("favMsg");
-  if(!FAV.list.length){ msg.textContent = "Nog geen favorieten."; return; }
+  const specs = allSpecs();
+  if(!specs.length){ msg.textContent = "Nog geen favorieten."; return; }
   if(scanning){ msg.textContent = "Er loopt al een scan; wacht tot die klaar is."; return; }
-  const flips = FAV.list.filter(f => f.mode !== "craft"), crafts = FAV.list.filter(f => f.mode === "craft");
+  const flips = specs.filter(f => f.mode !== "craft"), crafts = specs.filter(f => f.mode === "craft");
   const jobs = [];
   if(flips.length) jobs.push({ids:[...new Set(flips.map(f => f.itemId))], locs:[...new Set(flips.flatMap(f => [f.from, f.to]))],
     q:[...new Set(flips.map(f => f.quality))].sort().join(",")});
@@ -2854,9 +2887,9 @@ async function checkFavs(){
     }
     if(!fatal && !ctrl.signal.aborted){
       // verkoopvolume en gemiddelde prijs van de favorieten
-      const ids = [...new Set(FAV.list.map(f => f.itemId))];
-      const locs = [...new Set(FAV.list.flatMap(f => f.mode === "craft" ? [f.to] : [f.from, f.to]))];
-      const qs = [...new Set(FAV.list.map(f => f.quality))].sort();
+      const ids = [...new Set(specs.map(f => f.itemId))];
+      const locs = [...new Set(specs.flatMap(f => f.mode === "craft" ? [f.to] : [f.from, f.to]))];
+      const qs = [...new Set(specs.map(f => f.quality))].sort();
       for(const ch of histChunks(ids, locs, qs)){
         msg.textContent = "Volume ophalen…";
         try{
@@ -2876,14 +2909,17 @@ async function checkFavs(){
 function renderFavs(){
   const root = $("favRoot"); root.textContent = "";
   const head = el("div", "cart-head"); head.appendChild(el("h2", null, "Favorieten")); root.appendChild(head);
-  root.appendChild(el("p", "est", "Je vaste trade- en craftroutes. Bewaar een kans in Markt met ☆; hij rekent daarna steeds met de instellingen van toen (koop- en verkoopmethode, RRR, gemiddelde prijs). “Check alle” haalt alleen de prijzen op die je favorieten nodig hebben."));
-  if(!FAV.list.length){ root.appendChild(el("div", "empty", "Nog geen favorieten. Klik in Markt bij een kans op ☆ om hem hier te bewaren.")); return; }
+  root.appendChild(el("p", "est", "Je vaste batches en routes. Bewaar een hele batch met “★ Bewaar als vaste batch” in je mandje, of één kans in Markt met ☆. Alles rekent daarna met de instellingen van toen (koop- en verkoopmethode, RRR, gemiddelde prijs). “Check alle” haalt alleen de prijzen op die je favorieten nodig hebben."));
+  if(!FAV.list.length && !FAV.batches.length){ root.appendChild(el("div", "empty", "Nog geen favorieten. Bewaar een batch vanuit je mandje, of klik in Markt bij een kans op ☆.")); return; }
   const lastMsg = FAV.msg || ""; FAV.msg = "";
   const bar = el("div", "btns");
   const chk = el("button", "btn primary", "Check alle"); chk.type = "button"; chk.id = "favCheck";
   chk.addEventListener("click", checkFavs);
   const m = el("span", "est", lastMsg || (FAV.checked ? "Laatst gecheckt " + fmtAge(FAV.checked) + " geleden." : "Nog niet gecheckt.")); m.id = "favMsg";
   bar.append(chk, m); root.appendChild(bar);
+  if(FAV.batches.length) renderBatches(root);
+  if(!FAV.list.length) return;
+  root.appendChild(el("h3", "ord-h", "Losse routes"));
   const results = FAV.list.map(f => ({f, ev:evalFav(f)}));
   results.sort((a, b) => ((b.ev && b.ev.row.pot) || -1) - ((a.ev && a.ev.row.pot) || -1) || ((b.ev && b.ev.row.profit) || -1e12) - ((a.ev && a.ev.row.profit) || -1e12));
   const daySum = results.reduce((s, x) => s + (x.ev && x.ev.row.pot > 0 ? x.ev.row.pot : 0), 0);
@@ -2934,6 +2970,53 @@ function renderFavs(){
     tb.appendChild(tr);
   }
   t.appendChild(tb); tw.appendChild(t); wrap.appendChild(tw); root.appendChild(wrap);
+}
+function renderBatches(root){
+  root.appendChild(el("h3", "ord-h", "Vaste batches"));
+  for(const b of FAV.batches){
+    const card = el("div", "card batch");
+    const top = el("div", "batch-top");
+    const name = el("input"); name.type = "text"; name.value = b.name; name.className = "batch-name"; name.maxLength = 80;
+    name.setAttribute("aria-label", "Naam van de batch");
+    name.addEventListener("change", () => { b.name = name.value.trim() || b.name; favSave(); });
+    top.appendChild(name);
+    const evs = b.items.map(it => ({it, ev:evalFav(it)}));
+    const ok = evs.filter(x => x.ev);
+    const stuks = b.items.reduce((s, it) => s + (it.qty || 1), 0);
+    const cost = ok.reduce((s, x) => s + (x.ev.row.costUnit != null ? x.ev.row.costUnit : x.ev.row.buy) * x.it.qty, 0);
+    const profit = ok.reduce((s, x) => s + x.ev.row.profit * x.it.qty, 0);
+    const sum = el("p", "plan-sum", b.items.length + (b.items.length === 1 ? " item" : " items") + " · " + stuks + " stuks · " +
+      (ok.length === b.items.length ? "nu: investering " + fmtS(cost) + " · winst " + (profit >= 0 ? "+" : "−") + fmtS(Math.abs(profit)) + " (" + Math.round(profit / cost * 100) + "%)"
+        : "klik op “Check alle” voor de prijzen van nu") + (b.lastProfit != null ? " · bij bewaren +" + fmtS(b.lastProfit) : ""));
+    card.append(top, sum);
+    const ul = el("div", "batch-items");
+    for(const {it, ev} of evs){
+      const r = ev && ev.row;
+      const route = it.mode === "craft" ? "craft " + ((r && r.craft && r.craft.city) || "–") + " → " + (it.to === BM ? "BM" : it.to) : it.from + " → " + (it.to === BM ? "BM" : it.to);
+      ul.appendChild(el("div", "chk-sub", it.qty + "× T" + it.tier + (it.ench ? "." + it.ench : "") + " " + it.name + " · " + route +
+        (r ? " · winst/stuk " + (r.profit >= 0 ? "+" : "−") + fmt(Math.abs(r.profit)) + (r.vEff != null ? " · " + fmtVol(r.vEff) + "/dag" : "") : "")));
+    }
+    card.appendChild(ul);
+    const btns = el("div", "btns");
+    const load = el("button", "btn primary", "In mandje zetten"); load.type = "button"; load.className = "btn primary batch-load";
+    load.disabled = ok.length !== b.items.length;
+    load.title = load.disabled ? "Klik eerst op “Check alle”" : "Zet de batch met de prijzen van nu in je mandje";
+    let armed = false;
+    load.addEventListener("click", () => {
+      if(CART.items.length && !armed){ armed = true; load.textContent = "Je mandje wordt vervangen. Klik nog eens"; return; }
+      CART.items = ok.map(x => ({...x.ev.snap, qty:x.it.qty, key:"batch|" + b.id + "|" + x.ev.snap.key}));
+      CART.checks = {}; CART.stage = "select"; cartSave(); updateCartUi();
+      location.hash = "mandje"; showView("mandje");
+    });
+    const del = el("button", "btn", "Verwijder"); del.type = "button";
+    del.addEventListener("click", () => {
+      if(!del.dataset.armed){ del.dataset.armed = "1"; del.textContent = "Zeker? Klik nog eens"; return; }
+      FAV.batches = FAV.batches.filter(x => x.id !== b.id); favSave(); updateFavUi();
+    });
+    btns.append(load, del);
+    card.appendChild(btns);
+    root.appendChild(card);
+  }
 }
 function initFavs(){ favLoad(); updateFavUi(); }
 

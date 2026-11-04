@@ -540,6 +540,28 @@ with sync_playwright() as p:
     check(p6.locator("#trOut svg circle").count() > 5, "kaart getekend")
     check(not err6, "geen JS-fouten bij reisroute: %s" % err6)
 
+    # ---------- vaste batches ----------
+    p6.click("#tabMandje")
+    p6.locator("#cartRoot input.qty").first.fill("5")
+    p6.click("#cartRoot .batch-save")
+    check(p6.inner_text("#tabFavs") == "Favorieten (2)", "batch bewaard: " + p6.inner_text("#tabFavs"))
+    p6.reload(); p6.wait_for_timeout(300)
+    p6.click("#tabFavs")
+    card = p6.inner_text("#favRoot .batch")
+    print("batch:", card.replace("\n", " | ")[:300])
+    check("5× T5 Expert's Broadsword" in card and p6.is_disabled("#favRoot .batch-load"), "batch bewaard na herladen; eerst checken")
+    p6.click("#favCheck")
+    p6.wait_for_function("document.getElementById('favMsg') && document.getElementById('favMsg').textContent.startsWith('Gecheckt')", timeout=30000)
+    card = p6.inner_text("#favRoot .batch")
+    check("winst +172k" in card or "winst +" in card, "batch toont winst van nu: " + card.replace("\n", " | ")[:200])
+    p6.click("#favRoot .batch-load")
+    check("vervangen" in p6.inner_text("#favRoot .batch-load"), "waarschuwing dat het mandje wordt vervangen")
+    p6.click("#favRoot .batch-load")
+    check(p6.is_visible("#viewCart") and p6.evaluate("CART.items.length === 1 && CART.items[0].qty === 5"), "batch staat in het mandje met 5 stuks")
+    p6.click("#cartGo")
+    check("5× T5 Expert's Broadsword" in p6.inner_text("#cartRoot"), "afvinklijst van de batch")
+    check(not err6, "geen JS-fouten bij batches: %s" % err6)
+
     browser.close()
 
 print("\nFAILURES:", len(failures))

@@ -10,7 +10,7 @@ UI-tekst is Nederlands. Joris wil korte, scanbare uitleg.
 - Test: `python3 -I tests/test_ui.py index.html /tmp/copy.html /tmp` en `tests/test_site.py` (zelfde argumenten). De tests verwachten items.json op `/home/claude/dl/itemsjson/items.json`; pas dat pad aan als het ergens anders staat.
 - Tabs nu: Markt (modi BM, Stad → stad, Routes, Buy orders, Craften; Laadplanner boven de resultaten), Favorieten, Orders, Mandje, Logboek.
 - Reisroute (tab `reis`): zonegraaf in `tools/world.json`, gemaakt met `python3 -I tools/build_world.py <cluster/world.xml uit ao-bin-dumps> tools/world.json`; ingebakken via `__WORLD__`. Richting = hoek tussen `worldmapposition` van twee zones (y omhoog = noord). Opslag `albionReis.v1`. Roads of Avalon (TUNNEL_*) zitten er niet in.
-- Favorieten (`albionFavorieten.v1`, `{list,checked}`): elke favoriet bewaart modus, route en instellingen van toen; `evalFav` rekent hem door via `withSettings` + computeFlips/computeCrafts.
+- Favorieten (`albionFavorieten.v1`, `{list,batches,checked}`; batches = `{id,name,items:[spec+qty],saved,lastProfit}`, gemaakt uit het mandje; mandje-items dragen `spec` met de instellingen): elke favoriet bewaart modus, route en instellingen van toen; `evalFav` rekent hem door via `withSettings` + computeFlips/computeCrafts.
 - Craftbonussen per stad: `tools/craftingbonus.json` (uit ao-bin-dumps `craftingmodifiers.json`, clusters 0000 Thetford, 1000 Lymhurst, 2000 Bridgewatch, 3004 Martlock, 4000 Fort Sterling, 3003 Caerleon, 5000 Brecilien). RRR = 1 − 1/(1 + basis 0,18 + bonus itemsoort + focus 0,59). Items krijgen `cc` (craftingcategory).
 - Nieuwe tool = nieuwe tab: een `<main id="view…">`, een knop in `.tabs` (data-view) en een sleutel in `VIEWS`.
 
