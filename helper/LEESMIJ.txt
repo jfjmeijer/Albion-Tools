@@ -1,7 +1,7 @@
 Albion Tools - prive data
 
 Wat zit erin
-- albion-helper.exe      : klein hulpprogramma. Ontvangt de marktdata van de Albion Data Client
+- albion-helper.exe      : klein hulpprogramma. Ontvangt de marktdata (orders en prijsgrafieken) van de Albion Data Client
                             op je eigen pc (http://127.0.0.1:47800) en geeft die aan de Albion Tools-site.
 - start-albion-prive.bat : start het hulpprogramma en de Albion Data Client met
                             -i http://127.0.0.1:47800, zodat er NIETS naar de openbare database gaat.

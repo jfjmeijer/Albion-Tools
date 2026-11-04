@@ -6,6 +6,7 @@
 package main
 
 import (
+	_ "embed"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -22,7 +23,7 @@ import (
 )
 
 const (
-	version   = "1.0.0"
+	version   = "1.1.0"
 	listen    = "127.0.0.1:47800"
 	mergeGap  = 15 * time.Second // binnen deze tijd hoort een nieuwe upload bij dezelfde lijst (volgende pagina)
 	keepFor   = 24 * time.Hour
@@ -33,6 +34,107 @@ const (
 var locations = map[string]string{
 	"0007": "Thetford", "1002": "Lymhurst", "2004": "Bridgewatch", "3008": "Martlock",
 	"4002": "Fort Sterling", "3005": "Caerleon", "5003": "Brecilien", "3003": "Black Market",
+}
+
+//go:embed items_index.txt
+var itemsIndexTxt string
+var itemByAlbionID = map[int32]string{}
+
+func init() {
+	for _, line := range strings.Split(itemsIndexTxt, "\n") {
+		if i := strings.IndexByte(line, ' '); i > 0 {
+			if n, err := strconv.Atoi(line[:i]); err == nil {
+				itemByAlbionID[int32(n)] = strings.TrimSpace(line[i+1:])
+			}
+		}
+	}
+}
+
+// Verkoopgeschiedenis zoals de client die stuurt als je in-game de prijsgrafiek van een item opent.
+type histPoint struct {
+	ItemAmount   int64  `json:"ItemAmount"`
+	SilverAmount uint64 `json:"SilverAmount"`
+	Timestamp    uint64 `json:"Timestamp"` // .NET-ticks
+}
+type histUpload struct {
+	AlbionID  int32        `json:"AlbionId"`
+	Location  string       `json:"LocationId"`
+	Quality   int          `json:"QualityLevel"`
+	Timescale int          `json:"Timescale"` // 0 = 24 uur, 1 = 7 dagen, 2 = 4 weken
+	Histories []*histPoint `json:"MarketHistories"`
+}
+type histStat struct {
+	Item     string    `json:"item_id"`
+	City     string    `json:"city"`
+	Quality  int       `json:"quality"`
+	PerDay   float64   `json:"per_day"`
+	Days     int       `json:"days"`
+	AvgPrice float64   `json:"avg_price"`
+	Scale    int       `json:"timescale"`
+	Seen     time.Time `json:"seen"`
+}
+
+const ticksAtUnixEpoch = 621355968000000000
+
+func ingestHistory(body []byte) (string, error) {
+	var up histUpload
+	if err := json.Unmarshal(body, &up); err != nil {
+		return "", err
+	}
+	item := itemByAlbionID[up.AlbionID]
+	city := cityOf(up.Location)
+	if item == "" || city == "" || len(up.Histories) == 0 {
+		st.mu.Lock()
+		if city == "" && up.Location != "" {
+			st.Unknown[up.Location]++
+		}
+		st.mu.Unlock()
+		return "", nil
+	}
+	q := up.Quality
+	if q < 1 {
+		q = 1
+	}
+	now := time.Now().UTC()
+	today := now.Truncate(24 * time.Hour)
+	var items int64
+	var silver float64
+	days := map[int64]bool{}
+	for _, h := range up.Histories {
+		if h == nil || h.ItemAmount <= 0 || h.Timestamp < ticksAtUnixEpoch {
+			continue
+		}
+		t := time.UnixMilli(int64((h.Timestamp - ticksAtUnixEpoch) / 10000)).UTC()
+		if up.Timescale == 0 {
+			if now.Sub(t) > 24*time.Hour { // 24-uursgrafiek: alles van de laatste 24 uur
+				continue
+			}
+		} else if !t.Before(today) || t.Before(today.Add(-7*24*time.Hour)) { // 7 volle dagen, vandaag telt niet mee
+			continue
+		}
+		items += h.ItemAmount
+		silver += float64(h.SilverAmount)
+		days[t.Truncate(24*time.Hour).Unix()] = true
+	}
+	stat := &histStat{Item: item, City: city, Quality: q, Scale: up.Timescale, Seen: time.Now()}
+	if up.Timescale == 0 {
+		stat.PerDay, stat.Days = float64(items), 1
+	} else {
+		stat.PerDay, stat.Days = float64(items)/7, len(days)
+	}
+	if items > 0 {
+		stat.AvgPrice = silver / float64(items) / priceUnit
+	}
+	key := item + "|" + strconv.Itoa(q) + "|" + city
+	st.mu.Lock()
+	// een 7-dagen- of 4-wekenbeeld gaat voor een 24-uursbeeld
+	if old := st.Hist[key]; old == nil || up.Timescale != 0 || old.Scale == 0 || now.Sub(old.Seen) > time.Hour {
+		st.Hist[key] = stat
+	}
+	st.dirty = true
+	st.LastUpload = time.Now()
+	st.mu.Unlock()
+	return item + " in " + city, nil
 }
 
 var resourceRe = regexp.MustCompile(`^T\d_(ORE|WOOD|FIBER|HIDE|ROCK|METALBAR|PLANKS|CLOTH|LEATHER|STONEBLOCK)$`)
@@ -60,14 +162,15 @@ type group struct {
 
 type store struct {
 	mu         sync.Mutex
-	Groups     map[string]*group `json:"groups"`
-	LastUpload time.Time         `json:"lastUpload"`
-	Uploads    int               `json:"uploads"`
-	Unknown    map[string]int    `json:"unknownLocations"`
+	Groups     map[string]*group    `json:"groups"`
+	LastUpload time.Time            `json:"lastUpload"`
+	Uploads    int                  `json:"uploads"`
+	Unknown    map[string]int       `json:"unknownLocations"`
+	Hist       map[string]*histStat `json:"history"`
 	dirty      bool
 }
 
-var st = &store{Groups: map[string]*group{}, Unknown: map[string]int{}}
+var st = &store{Groups: map[string]*group{}, Unknown: map[string]int{}, Hist: map[string]*histStat{}}
 var dataFile string
 
 func cityOf(loc string) string {
@@ -261,6 +364,13 @@ func handler(w http.ResponseWriter, r *http.Request) {
 			if n > 0 {
 				log.Printf("Ontvangen: %d orders", n)
 			}
+		} else if strings.HasSuffix(path, "markethistories.ingest") {
+			what, err := ingestHistory(body)
+			if err != nil {
+				log.Printf("Kon geschiedenis niet lezen: %v", err)
+			} else if what != "" {
+				log.Printf("Ontvangen: verkoopgeschiedenis van %s", what)
+			}
 		}
 		w.WriteHeader(http.StatusOK) // andere uploads (history, goud) worden genegeerd
 	case path == "/status" || path == "":
@@ -277,10 +387,30 @@ func handler(w http.ResponseWriter, r *http.Request) {
 		for k, v := range st.Unknown {
 			unknown[k] = v
 		}
-		uploads := st.Uploads
+		uploads, hist := st.Uploads, len(st.Hist)
 		st.mu.Unlock()
 		writeJSON(w, map[string]interface{}{"ok": true, "app": "albion-tools-helper", "version": version,
-			"groups": groups, "orders": orders, "uploads": uploads, "lastUpload": last, "unknownLocations": unknown})
+			"groups": groups, "orders": orders, "histories": hist, "uploads": uploads, "lastUpload": last, "unknownLocations": unknown})
+	case path == "/history":
+		since := time.Time{}
+		if s := r.URL.Query().Get("since"); s != "" {
+			if ms, err := strconv.ParseInt(s, 10, 64); err == nil {
+				since = time.UnixMilli(ms)
+			}
+		}
+		st.mu.Lock()
+		out := []*histStat{}
+		for key, h := range st.Hist {
+			if time.Since(h.Seen) > keepFor {
+				delete(st.Hist, key)
+				continue
+			}
+			if !h.Seen.Before(since) {
+				out = append(out, h)
+			}
+		}
+		st.mu.Unlock()
+		writeJSON(w, out)
 	case path == "/prices":
 		since := time.Time{}
 		if s := r.URL.Query().Get("since"); s != "" {
@@ -306,6 +436,9 @@ func load() {
 	}
 	if st.Unknown == nil {
 		st.Unknown = map[string]int{}
+	}
+	if st.Hist == nil {
+		st.Hist = map[string]*histStat{}
 	}
 }
 

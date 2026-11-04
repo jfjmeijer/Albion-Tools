@@ -216,6 +216,7 @@ td.pos{color:var(--good);font-weight:600} td.neg{color:var(--bad);font-weight:60
         <li>Dubbelklik <b>start-albion-prive.bat</b> vóór je gaat spelen. Dat start het hulpprogramma en de client, die nu alleen naar je eigen pc stuurt.</li>
         <li>Vink hierboven “Gebruik live data van mijn pc” aan. Geeft je browser een melding over je lokale netwerk, klik dan op Toestaan.</li>
         <li>Open in Albion de markt of Black Market; binnen ±15 seconden zie je de prijzen en aantallen hier.</li>
+        <li>Open je in-game ook de <b>prijsgrafiek</b> van een item (kies 7 dagen of 4 weken), dan krijg je het verkochte aantal per dag en de gemiddelde prijs uit je eigen data.</li>
       </ol>
     </details>
   </div>
@@ -780,7 +781,7 @@ async function scan(){
   setBusy(false); hideBarSoon();
   if(fatal){ setStatus(fatal, "err"); render(); return; }
   lastScan = Date.now();
-  if(S.local) await mergeLocal(0);
+  if(S.local){ await mergeLocal(0); await mergeLocalHistory(0); }
   render();
   let msg, cls = "ok";
   if(aborted){ msg = "Gestopt. Je ziet de tussentijdse resultaten."; cls = ""; }
@@ -803,6 +804,23 @@ async function mergeLocal(since){
     return n;
   }catch(e){ LOCAL.ok = false; return -1; }
 }
+// verkoopgeschiedenis van je pc (als je in-game de prijsgrafiek van een item opent)
+async function mergeLocalHistory(since){
+  try{
+    const res = await fetch(LOCAL_URL + "/history?since=" + (since || 0), {cache:"no-store"});
+    if(!res.ok) return -1;
+    const list = await res.json();
+    let n = 0;
+    for(const h of Array.isArray(list) ? list : []){
+      const city = normCity(h.city);
+      if(!city || !h.item_id || !(h.per_day >= 0)) continue;
+      volStore.set(volKey(h.item_id, h.quality || 1, city), {perDay:h.per_day, days:h.days || 0, avgPrice:h.avg_price || null,
+        t:Date.now(), local:true, scale:h.timescale});
+      n++;
+    }
+    return n;
+  }catch(e){ return -1; }
+}
 async function pollLocal(first){
   if(!S.local) return;
   let st = null;
@@ -816,13 +834,14 @@ async function pollLocal(first){
   }else{
     const t0 = Date.now();
     const n = await mergeLocal(first ? 0 : LOCAL.since);
+    const nh = await mergeLocalHistory(first ? 0 : LOCAL.since);
     if(n >= 0) LOCAL.since = t0 - 5000;
     const last = st.lastUpload ? Date.parse(st.lastUpload) : null;
     const unknown = Object.keys(st.unknownLocations || {});
-    localStatus("Verbonden · " + (st.orders || 0).toLocaleString("nl-NL") + " orders van je pc" +
+    localStatus("Verbonden · " + (st.orders || 0).toLocaleString("nl-NL") + " orders" + (st.histories ? " en " + st.histories + " verkoopgeschiedenissen" : "") + " van je pc" +
       (last ? " · laatste upload " + fmtAge(last) + " geleden" : " · nog niets ontvangen: open een markt in Albion") +
       (unknown.length ? " · onbekende plekken: " + unknown.slice(0, 3).join(", ") : ""), "ok");
-    if(n > 0){ clearTimeout(LOCAL.renderT); LOCAL.renderT = setTimeout(() => { if(!scanning) render(); }, 300); }
+    if(n > 0 || nh > 0){ clearTimeout(LOCAL.renderT); LOCAL.renderT = setTimeout(() => { if(!scanning) render(); }, 300); }
   }
   clearTimeout(LOCAL.timer);
   LOCAL.timer = setTimeout(() => pollLocal(false), 15000);
@@ -853,7 +872,7 @@ function volGet(id, q, city){
   const e = volEntry(id, q, city);
   if(!e) return {s:"na", city};
   if(e.none) return {s:"none", city};
-  return {s:"ok", city, perDay:e.perDay, days:e.days, avgPrice:e.avgPrice};
+  return {s:"ok", city, perDay:e.perDay, days:e.days, avgPrice:e.avgPrice, local:!!e.local, scale:e.scale};
 }
 // Gemiddelde over de laatste 7 volle dagen (UTC); dagen zonder record tellen als 0. De lopende dag is onvolledig en telt niet mee.
 function histStats(data){
@@ -876,7 +895,9 @@ function ingestHistory(arr){
   for(const r of arr){
     const city = r ? normCity(r.location || r.city) : null;
     if(!city || !r.item_id || !Array.isArray(r.data)) continue;
-    volStore.set(volKey(r.item_id, r.quality || 1, city), {...histStats(r.data), t:Date.now()});
+    const k = volKey(r.item_id, r.quality || 1, city), cur = volStore.get(k);
+    if(cur && cur.local && Date.now() - cur.t <= VOL_TTL) continue;   // eigen data van je pc gaat voor
+    volStore.set(k, {...histStats(r.data), t:Date.now()});
     n++;
   }
   return n;
@@ -951,7 +972,7 @@ async function fetchVolumes(prefix, prefixCls){
         const data = await fetchJson(ch.url, ctrl.signal);
         const combos = [];
         for(const id of ch.ids) for(const q of qs) for(const l of locs) combos.push(volKey(id, q, l));
-        for(const k of combos) volStore.delete(k);
+        for(const k of combos){ const e = volStore.get(k); if(!(e && e.local)) volStore.delete(k); }
         ingestHistory(data);
         const t = Date.now();
         for(const k of combos) if(!volStore.has(k)) volStore.set(k, {none:true, t});
@@ -1244,7 +1265,8 @@ function fmtVol(v){
 function volTitle(v){
   if(v.s === "na") return v.city + ": nog niet opgehaald";
   if(v.s === "none") return v.city + ": geen history-data bekend";
-  return v.city + ": gemiddeld " + fmtVol(v.perDay) + " verkocht per dag (" + v.days + " van " + HIST_DAYS + " dagen met data)" +
+  if(v.local && v.scale === 0) return v.city + ": " + fmtVol(v.perDay) + " verkocht in de laatste 24 uur (eigen data)" + (v.avgPrice ? ", gemiddelde prijs " + fmt(v.avgPrice) : "");
+  return v.city + ": gemiddeld " + fmtVol(v.perDay) + " verkocht per dag (" + v.days + " van " + HIST_DAYS + " dagen met data" + (v.local ? ", eigen data" : "") + ")" +
     (v.avgPrice ? ", gemiddelde prijs " + fmt(v.avgPrice) : "");
 }
 function volCell(r){

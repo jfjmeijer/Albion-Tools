@@ -395,9 +395,16 @@ with sync_playwright() as p:
     now_iso = iso(0)
     LOCAL_RECS = [{"item_id": "T5_MAIN_SWORD", "city": "Black Market", "quality": 1, "sell_price_min": 0, "sell_price_min_date": ZERO,
                    "sell_amount": 0, "buy_price_max": 135000, "buy_price_max_date": now_iso, "buy_amount": 3, "source": "local"}]
+    LOCAL_HIST = []
+
     def local(route):
         url = route.request.url
-        body = {"ok": True, "orders": 3, "lastUpload": now_iso + "Z", "unknownLocations": {}} if "/status" in url else LOCAL_RECS
+        if "/status" in url:
+            body = {"ok": True, "orders": 3, "histories": len(LOCAL_HIST), "lastUpload": now_iso + "Z", "unknownLocations": {}}
+        elif "/history" in url:
+            body = LOCAL_HIST
+        else:
+            body = LOCAL_RECS
         route.fulfill(status=200, body=json.dumps(body), headers={"access-control-allow-origin": "*", "content-type": "application/json"})
     ctx5 = browser.new_context(locale="nl-NL", viewport={"width": 1400, "height": 950})
     p5 = ctx5.new_page()
@@ -439,6 +446,22 @@ with sync_playwright() as p:
     p5.uncheck("#useAvg")
     sw = [r for r in rows(p5) if r[0].startswith("T5E")]
     check(sw and sw[0][4] == "+15.200", "zonder vinkje weer de huidige prijs (+15.200, was %s)" % (sw[0][4] if sw else None))
+
+    # eigen verkoopgeschiedenis (prijsgrafiek in-game) gaat voor de openbare
+    LOCAL_HIST.append({"item_id": "T5_MAIN_SWORD", "city": "Martlock", "quality": 1, "per_day": 150, "days": 7, "avg_price": 170000, "timescale": 1})
+    p5.check("#localOn")
+    p5.wait_for_function("document.getElementById('localStatus').textContent.includes('verkoopgeschiedenis')", timeout=10000)
+    p5.check("#useAvg")
+    p5.wait_for_timeout(600)
+    sw = [r for r in rows(p5) if r[0].startswith("T5E")]
+    print("eigen history:", sw[:1])
+    check(sw and sw[0][6] == "14 / 150", "volume Martlock uit eigen data: 150 per dag (was %s)" % (sw[0][6] if sw else None))
+    check(sw and sw[0][3].startswith("170.000") and sw[0][4] == "+63.200", "gemiddelde prijs uit eigen data: 170.000 → +63.200 (was %s)" % (sw[0][3:5] if sw else None))
+    p5.click("#volBtn")
+    p5.wait_for_function("!document.getElementById('scanBtn').disabled && document.getElementById('status').textContent.includes('Volume')", timeout=30000)
+    sw = [r for r in rows(p5) if r[0].startswith("T5E")]
+    check(sw and sw[0][6] == "14 / 150", "openbare history overschrijft eigen data niet (was %s)" % (sw[0][6] if sw else None))
+    check(not err5, "geen JS-fouten na eigen history: %s" % err5)
 
     browser.close()
 

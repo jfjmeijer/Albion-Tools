@@ -13,10 +13,10 @@ UI-tekst is Nederlands. Joris wil korte, scanbare uitleg.
 - Nieuwe tool = nieuwe tab: een `<main id="view…">`, een knop in `.tabs` (data-view) en een sleutel in `VIEWS`.
 
 ## Eigen data (privé)
-- `helper/` = Go-hulpprogramma (`main.go`), luistert op `127.0.0.1:47800`. De Albion Data Client wordt gestart met `-i http://127.0.0.1:47800` (dus niets naar AODP; `noop` NIET gebruiken, dat laat de client crashen). Endpoints: `POST /marketorders.ingest` (zelfde JSON als lib.MarketOrder; prijzen ×10.000), `GET /status`, `GET /prices?since=<ms>` (AODP-achtige records + `sell_amount`/`buy_amount`, `source:"local"`).
+- `helper/` = Go-hulpprogramma (`main.go`), luistert op `127.0.0.1:47800`. De Albion Data Client wordt gestart met `-i http://127.0.0.1:47800` (dus niets naar AODP; `noop` NIET gebruiken, dat laat de client crashen). Endpoints: `POST /marketorders.ingest` (zelfde JSON als lib.MarketOrder; prijzen ×10.000), `POST /markethistories.ingest` (AlbionId → item-ID via `helper/items_index.txt`, gemaakt met `tools/gen_helper_items.py` uit items.txt; Timestamp = .NET-ticks; SilverAmount ×10.000), `GET /status`, `GET /prices?since=<ms>` (AODP-achtige records + `sell_amount`/`buy_amount`, `source:"local"`), `GET /history?since=<ms>` (`per_day`, `avg_price`, `days`, `timescale`).
 - Bouwen: `cd helper && GOOS=windows GOARCH=amd64 CGO_ENABLED=0 go build -trimpath -ldflags "-s -w" -o albion-helper.exe .` en daarna `albion-tools-helper.zip` opnieuw maken (exe + `start-albion-prive.bat` + `LEESMIJ.txt`). De losse exe staat in .gitignore; de zip wordt gecommit.
 - Locatie-ID's: 0007 Thetford, 1002 Lymhurst, 2004 Bridgewatch, 3008 Martlock, 4002 Fort Sterling, 3005 Caerleon, 5003 Brecilien, 3003 of `*-Auction2` = Black Market (nog niet live geverifieerd; onbekende ID's toont de site in de status).
-- Site: instelling `S.local`, polling elke 15 s; `ingest()` laat de nieuwste prijs winnen.
+- Site: instelling `S.local`, polling elke 15 s; `ingest()` laat de nieuwste prijs winnen. Eigen history komt in `volStore` met `local:true` en wordt niet door openbare history overschreven.
 - `S.useAvg`: verkoopprijs = 7-daags gemiddelde uit de history (`avgOf`), alleen als die voor de verkoopplek bekend is (rijen krijgen `sellAvg`).
 
 ## Belangrijk
