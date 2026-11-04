@@ -248,7 +248,12 @@ bonus_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "craftingb
 bonus = json.load(open(bonus_path, encoding="utf-8"))
 if "__CRAFTBONUS__" not in tpl_html:
     raise SystemExit("craftbonus placeholder missing")
-html = tpl_html.replace("__ITEMDATA__", payload).replace("__CRAFTBONUS__", json.dumps(bonus, separators=(",", ":"), ensure_ascii=True))
+world = json.load(open(os.path.join(os.path.dirname(os.path.abspath(__file__)), "world.json"), encoding="utf-8"))
+if "__WORLD__" not in tpl_html:
+    raise SystemExit("world placeholder missing")
+html = (tpl_html.replace("__ITEMDATA__", payload)
+        .replace("__CRAFTBONUS__", json.dumps(bonus, separators=(",", ":"), ensure_ascii=True))
+        .replace("__WORLD__", json.dumps(world, separators=(",", ":"), ensure_ascii=True)))
 open(out_path, "w", encoding="utf-8").write(html)
 
 cats = defaultdict(int)

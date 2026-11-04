@@ -97,8 +97,17 @@ header{display:flex;flex-wrap:wrap;align-items:flex-end;justify-content:space-be
 .cartbar{grid-column:1/-1;position:sticky;bottom:10px;z-index:4;display:flex;gap:12px;align-items:center;justify-content:space-between;flex-wrap:wrap;
   background:#1f2633;border:1px solid var(--accent);border-radius:12px;padding:10px 14px;box-shadow:0 6px 24px rgba(0,0,0,.45)}
 .cartbar .btn.primary{flex:0 0 auto}
-#viewCart,#viewOrders,#viewFavs{display:block;max-width:1200px}
-#viewCart.hidden,#viewOrders.hidden,#viewFavs.hidden{display:none!important}
+#viewCart,#viewOrders,#viewFavs,#viewTravel{display:block;max-width:1200px}
+#viewCart.hidden,#viewOrders.hidden,#viewFavs.hidden,#viewTravel.hidden{display:none!important}
+.tr-form{display:flex;flex-direction:column;gap:6px}
+.tr-row{display:grid;grid-template-columns:1fr auto 1fr;gap:10px;align-items:end}
+.tr-row .btn{margin-bottom:9px}
+.tr-row2{display:grid;grid-template-columns:minmax(0,1.4fr) auto auto;gap:12px}
+@media (max-width:700px){.tr-row2{grid-template-columns:1fr}}
+.tr-out{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:16px;align-items:start}
+@media (max-width:960px){.tr-out{grid-template-columns:1fr}}
+.zdot{display:inline-block;width:9px;height:9px;border-radius:50%;margin-right:7px;vertical-align:0}
+input.bad{border-color:var(--bad)}
 .favbtn{background:none;border:1px solid var(--line);color:var(--muted);border-radius:6px;padding:1px 7px;font:inherit;font-size:13px;cursor:pointer;margin-right:4px}
 .favbtn.on{color:var(--accent);border-color:var(--accent)}
 .fav-na{color:var(--muted);font-size:12.5px}
@@ -188,6 +197,7 @@ td.pos{color:var(--good);font-weight:600} td.neg{color:var(--bad);font-weight:60
     <button type="button" role="tab" id="tabFavs" data-view="favorieten" aria-selected="false">Favorieten<span id="favCount"></span></button>
     <button type="button" role="tab" id="tabOrders" data-view="orders" aria-selected="false">Orders<span id="ordCount"></span></button>
     <button type="button" role="tab" id="tabMandje" data-view="mandje" aria-selected="false">Mandje<span id="cartCount"></span></button>
+    <button type="button" role="tab" id="tabReis" data-view="reis" aria-selected="false">Reisroute</button>
     <button type="button" role="tab" id="tabLogboek" data-view="logboek" aria-selected="false">Logboek</button>
   </nav>
 </header>
@@ -392,6 +402,31 @@ td.pos{color:var(--good);font-weight:600} td.neg{color:var(--bad);font-weight:60
 <main id="viewOrders" class="hidden"><section class="cart" id="ordRoot" aria-label="Orders"></section></main>
 
 <main id="viewCart" class="hidden"><section class="cart" id="cartRoot" aria-label="Mandje"></section></main>
+
+<main id="viewTravel" class="hidden"><section class="cart" aria-label="Reisroute">
+  <div class="cart-head"><h2>Reisroute</h2></div>
+  <p class="est">Kortste of veiligste route tussen twee zones, met per zone de uitgang die je moet nemen. Gemaakt uit de kaart van de game zelf. Roads of Avalon veranderen steeds en zitten er niet in; die vind je in-game of met een tool als Portaler.</p>
+  <div class="card tr-form">
+    <div class="tr-row">
+      <label class="field"><span>Van</span><input type="text" id="trFrom" list="zoneList" autocomplete="off" placeholder="bijv. Caerleon"></label>
+      <button type="button" class="btn" id="trSwap" title="Van en Naar omwisselen" aria-label="Van en Naar omwisselen">⇄</button>
+      <label class="field"><span>Naar</span><input type="text" id="trTo" list="zoneList" autocomplete="off" placeholder="bijv. Martlock"></label>
+    </div>
+    <div class="tr-row2">
+      <label class="field"><span>Soort route</span>
+        <select id="trMode"><option value="safe">Veiligste: zo min mogelijk rode en zwarte zones</option><option value="fast">Snelste: zo min mogelijk zones</option></select></label>
+      <label class="check" style="align-self:end;margin-bottom:12px"><input type="checkbox" id="trNoBlack"><span>Geen zwarte zones (outlands)</span></label>
+      <button type="button" class="btn" id="trReset" style="align-self:end;margin-bottom:9px">Vinkjes wissen</button>
+    </div>
+    <div id="trQuick">
+      <div class="filters"><span>Van</span><button type="button" class="chip" data-f="from" data-z="3003">Caerleon</button><button type="button" class="chip" data-f="from" data-z="2000">Bridgewatch</button><button type="button" class="chip" data-f="from" data-z="4000">Fort Sterling</button><button type="button" class="chip" data-f="from" data-z="1000">Lymhurst</button><button type="button" class="chip" data-f="from" data-z="3004">Martlock</button><button type="button" class="chip" data-f="from" data-z="0000">Thetford</button></div>
+      <div class="filters" style="margin-top:6px"><span>Naar</span><button type="button" class="chip" data-f="to" data-z="3003">Caerleon</button><button type="button" class="chip" data-f="to" data-z="2000">Bridgewatch</button><button type="button" class="chip" data-f="to" data-z="4000">Fort Sterling</button><button type="button" class="chip" data-f="to" data-z="1000">Lymhurst</button><button type="button" class="chip" data-f="to" data-z="3004">Martlock</button><button type="button" class="chip" data-f="to" data-z="0000">Thetford</button></div>
+    </div>
+  </div>
+  <p class="plan-sum" id="trMsg" role="status" aria-live="polite"></p>
+  <div id="trOut" class="tr-out"></div>
+  <datalist id="zoneList"></datalist>
+</section></main>
 
 <main id="viewLog" class="hidden">
 <aside class="panel" aria-label="Logboek invoer">
@@ -1587,7 +1622,7 @@ function init(){
    Site: tabs, hosting en downloadversie
    ================================================================= */
 const IN_CLAUDE = !!(window.claude && typeof window.claude.use === "function");
-const VIEWS = {markt:"viewMarkt", favorieten:"viewFavs", orders:"viewOrders", mandje:"viewCart", logboek:"viewLog"};
+const VIEWS = {markt:"viewMarkt", favorieten:"viewFavs", orders:"viewOrders", mandje:"viewCart", reis:"viewTravel", logboek:"viewLog"};
 let currentView = "markt";
 
 function showView(v){
@@ -1600,6 +1635,7 @@ function showView(v){
   if(v === "mandje") renderCart();
   if(v === "orders") renderOrders();
   if(v === "favorieten") renderFavs();
+  if(v === "reis") renderTravel();
 }
 function viewFromHash(){ const h = (location.hash || "").replace(/^#/, ""); return VIEWS[h] ? h : "markt"; }
 
@@ -2154,6 +2190,7 @@ function initSite(){
   initCart();
   initOrders();
   initFavs();
+  initTravel();
   showView(viewFromHash());
 }
 
@@ -2899,6 +2936,188 @@ function renderFavs(){
   t.appendChild(tb); tw.appendChild(t); wrap.appendChild(tw); root.appendChild(wrap);
 }
 function initFavs(){ favLoad(); updateFavUi(); }
+
+
+/* =================================================================
+   Reisroute: kortste of veiligste route tussen twee zones
+   ================================================================= */
+const WORLD = __WORLD__.zones;
+const ZLABEL = {c:"stad", b:"blauw", y:"geel", r:"rood", k:"zwart"};
+const ZFILL = {c:"#e2b24d", b:"#3987e5", y:"#e3c13b", r:"#e5594f", k:"#6b7385"};
+const TRAVEL_KEY = "albionReis.v1";
+const TRAVEL = {from:"3003", to:"3004", mode:"safe", noBlack:true, checks:{}};
+const ZNAME = new Map();   // naam (kleine letters) -> id
+for(const [id, z] of Object.entries(WORLD)){
+  const k = z.n.toLowerCase();
+  if(!ZNAME.has(k)) ZNAME.set(k, id);
+}
+function zoneLabel(id){
+  const z = WORLD[id]; if(!z) return id;
+  const dup = Object.values(WORLD).filter(x => x.n === z.n).length > 1;
+  return dup ? z.n + " (" + id + ")" : z.n;
+}
+function zoneIdOf(text){
+  const t = String(text || "").trim().toLowerCase();
+  if(!t) return null;
+  if(WORLD[text]) return text;
+  for(const id of Object.keys(WORLD)) if(zoneLabel(id).toLowerCase() === t) return id;
+  return ZNAME.get(t) || null;
+}
+function travelSave(){ try{ localStorage.setItem(TRAVEL_KEY, JSON.stringify(TRAVEL)); }catch(e){} }
+function travelLoad(){
+  try{
+    const j = JSON.parse(localStorage.getItem(TRAVEL_KEY) || "null");
+    if(!j) return;
+    if(WORLD[j.from]) TRAVEL.from = j.from;
+    if(WORLD[j.to]) TRAVEL.to = j.to;
+    if(j.mode === "fast" || j.mode === "safe") TRAVEL.mode = j.mode;
+    if(typeof j.noBlack === "boolean") TRAVEL.noBlack = j.noBlack;
+    if(j.checks && typeof j.checks === "object") TRAVEL.checks = j.checks;
+  }catch(e){}
+}
+// Dijkstra: snel = elke zone telt 1; veilig = rood en zwart wegen zwaar
+function findRoute(from, to, mode, noBlack){
+  const W = mode === "fast" ? {c:1, b:1, y:1, r:1, k:1} : {c:1, b:1, y:1.6, r:25, k:120};
+  const dist = new Map([[from, 0]]), prev = new Map(), done = new Set();
+  while(true){
+    let u = null, best = Infinity;
+    for(const [k, d] of dist) if(!done.has(k) && d < best){ best = d; u = k; }
+    if(u === null || u === to) break;
+    done.add(u);
+    for(const v of WORLD[u].e){
+      const z = WORLD[v];
+      if(!z || done.has(v)) continue;
+      if(noBlack && z.c === "k" && v !== to) continue;
+      const nd = best + W[z.c] + 0.001;
+      if(nd < (dist.has(v) ? dist.get(v) : Infinity)){ dist.set(v, nd); prev.set(v, u); }
+    }
+  }
+  if(!dist.has(to)) return null;
+  const path = [to];
+  while(path[0] !== from) path.unshift(prev.get(path[0]));
+  return path;
+}
+function compass(a, b){
+  const p = WORLD[a] && WORLD[a].p, q = WORLD[b] && WORLD[b].p;
+  if(!p || !q) return "";
+  const ang = Math.atan2(q[1] - p[1], q[0] - p[0]) * 180 / Math.PI;   // y omhoog = noord
+  const names = ["oost", "noordoost", "noord", "noordwest", "west", "zuidwest", "zuid", "zuidoost"];
+  return names[((Math.round(ang / 45) % 8) + 8) % 8];
+}
+function drawRouteMap(box, path){
+  box.textContent = "";
+  const pts = path.map(id => WORLD[id].p).filter(Boolean);
+  if(pts.length < 2){ box.appendChild(el("p", "est", "Geen kaartposities voor deze route.")); return; }
+  let x0 = Math.min(...pts.map(p => p[0])), x1 = Math.max(...pts.map(p => p[0]));
+  let y0 = Math.min(...pts.map(p => p[1])), y1 = Math.max(...pts.map(p => p[1]));
+  const pad = Math.max(12, (x1 - x0 + y1 - y0) * 0.15);
+  x0 -= pad; x1 += pad; y0 -= pad; y1 += pad;
+  const w = Math.max(280, Math.floor(box.clientWidth || 600)), h = Math.round(Math.min(420, Math.max(220, w * (y1 - y0) / Math.max(1, x1 - x0))));
+  const sx = (w - 20) / (x1 - x0), sy = (h - 20) / (y1 - y0), s = Math.min(sx, sy);
+  const ox = (w - (x1 - x0) * s) / 2, oy = (h - (y1 - y0) * s) / 2;
+  const X = x => ox + (x - x0) * s, Y = y => h - (oy + (y - y0) * s);   // y omhoog = noord
+  const svg = sv("svg", {viewBox:"0 0 " + w + " " + h, width:w, height:h, role:"img", "aria-label":"Kaart van de route", style:"overflow:hidden"});
+  box.appendChild(svg);
+  const inView = p => p && p[0] >= x0 && p[0] <= x1 && p[1] >= y0 && p[1] <= y1;
+  for(const [id, z] of Object.entries(WORLD)){
+    if(!inView(z.p)) continue;
+    for(const t of z.e){ const q = WORLD[t] && WORLD[t].p; if(q && t > id) sv("line", {x1:X(z.p[0]), y1:Y(z.p[1]), x2:X(q[0]), y2:Y(q[1]), style:"stroke:#283041;stroke-width:1"}, svg); }
+  }
+  const d = path.filter(id => WORLD[id].p).map((id, i) => (i ? "L" : "M") + X(WORLD[id].p[0]).toFixed(1) + " " + Y(WORLD[id].p[1]).toFixed(1)).join(" ");
+  sv("path", {d, style:"fill:none;stroke:var(--accent);stroke-width:3;stroke-linejoin:round;stroke-linecap:round"}, svg);
+  const onRoute = new Set(path);
+  for(const [id, z] of Object.entries(WORLD)){
+    if(!inView(z.p)) continue;
+    const r = onRoute.has(id) ? 6 : 3.5;
+    const c = sv("circle", {cx:X(z.p[0]), cy:Y(z.p[1]), r, style:"fill:" + ZFILL[z.c] + ";stroke:var(--panel);stroke-width:" + (onRoute.has(id) ? 2 : 1)}, svg);
+    const tt = sv("title", {}, c); tt.textContent = zoneLabel(id) + " (" + ZLABEL[z.c] + ")";
+  }
+  for(const id of [path[0], path[path.length - 1]]){
+    const p = WORLD[id].p; if(!p) continue;
+    svText(svg, X(p[0]) + 9, Y(p[1]) + 4, zoneLabel(id), {style:"fill:var(--text);font-size:12px;font-weight:700"});
+  }
+  svText(svg, w - 10, 16, "N ↑", {"text-anchor":"end", style:"fill:var(--muted);font-size:11px"});
+}
+function renderTravel(){
+  const out = $("trOut"); out.textContent = "";
+  const msg = $("trMsg");
+  const from = TRAVEL.from, to = TRAVEL.to;
+  if(!WORLD[from] || !WORLD[to]){ msg.textContent = "Kies een zone bij Van en Naar."; return; }
+  if(from === to){ msg.textContent = "Van en Naar zijn dezelfde zone."; return; }
+  let path = findRoute(from, to, TRAVEL.mode, TRAVEL.noBlack), relaxed = false;
+  if(!path && TRAVEL.noBlack){ path = findRoute(from, to, TRAVEL.mode, false); relaxed = !!path; }
+  if(!path){ msg.textContent = "Geen route gevonden in de vaste kaart (misschien alleen via de Roads of Avalon)."; return; }
+  const counts = {c:0, b:0, y:0, r:0, k:0};
+  for(const id of path.slice(1)) counts[WORLD[id].c]++;
+  msg.textContent = (path.length - 1) + " zones overgaan · " + ["r", "k", "y", "b", "c"].filter(k => counts[k]).map(k => counts[k] + " " + ZLABEL[k]).join(" · ") +
+    (relaxed ? " · let op: alleen mogelijk via een zwarte zone" : "");
+  const key = from + ">" + to + ">" + TRAVEL.mode;
+  const checks = TRAVEL.checks[key] || {};
+  const list = el("div", "card tr-steps");
+  const done = path.slice(0, -1).filter((_, i) => checks[i]).length;
+  list.appendChild(el("h3", null, "Route " + zoneLabel(from) + " → " + zoneLabel(to)));
+  list.appendChild(el("p", "sub2", done + " van " + (path.length - 1) + " stappen gedaan · vink af terwijl je rijdt"));
+  path.slice(0, -1).forEach((id, i) => {
+    const next = path[i + 1], z = WORLD[id], nz = WORLD[next];
+    const row = el("label", "chk" + (checks[i] ? " done" : ""));
+    const cb = el("input"); cb.type = "checkbox"; cb.checked = !!checks[i];
+    cb.addEventListener("change", () => {
+      const c = TRAVEL.checks[key] || (TRAVEL.checks[key] = {});
+      if(cb.checked) c[i] = 1; else delete c[i];
+      travelSave(); renderTravel();
+    });
+    const txt = el("span", "chk-text");
+    const dot = el("span", "zdot"); dot.style.background = ZFILL[z.c];
+    const main = el("span", "chk-main");
+    main.append(dot, document.createTextNode((i + 1) + ". In " + zoneLabel(id) + ": neem de uitgang naar "));
+    const nb = el("b", null, zoneLabel(next)); main.appendChild(nb);
+    const dir = compass(id, next);
+    txt.appendChild(main);
+    txt.appendChild(el("span", "chk-sub", (dir ? "richting " + dir + " op de wereldkaart · " : "") + zoneLabel(next) + " is " + ZLABEL[nz.c] +
+      (nz.c === "r" ? " (je kunt aangevallen worden en alles verliezen)" : nz.c === "k" ? " (volledig PvP, alles kwijt)" : "")));
+    row.append(cb, txt);
+    list.appendChild(row);
+  });
+  const end = el("div", "chk"); end.appendChild(el("span", "chk-main", "Aangekomen in " + zoneLabel(to)));
+  list.appendChild(end);
+  const mapCard = el("div", "card");
+  mapCard.appendChild(el("h3", null, "Kaart"));
+  mapCard.appendChild(el("p", "sub2", "Zones op de route zijn groter; kleur = zonetype (blauw, geel, rood, zwart, goud = stad). Noord is boven."));
+  const mb = el("div", "chart"); mapCard.appendChild(mb);
+  out.append(list, mapCard);
+  drawRouteMap(mb, path);
+  const reset = $("trReset"); reset.disabled = !done;
+}
+function initTravel(){
+  travelLoad();
+  const dl = $("zoneList");
+  for(const id of Object.keys(WORLD).sort((a, b) => zoneLabel(a).localeCompare(zoneLabel(b)))){
+    const o = document.createElement("option"); o.value = zoneLabel(id); dl.appendChild(o);
+  }
+  $("trFrom").value = zoneLabel(TRAVEL.from); $("trTo").value = zoneLabel(TRAVEL.to);
+  $("trMode").value = TRAVEL.mode; $("trNoBlack").checked = TRAVEL.noBlack;
+  const upd = (field, inp) => {
+    const id = zoneIdOf(inp.value);
+    inp.classList.toggle("bad", !!inp.value && !id);
+    if(id){ TRAVEL[field] = id; travelSave(); renderTravel(); }
+  };
+  $("trFrom").addEventListener("change", e => upd("from", e.target));
+  $("trTo").addEventListener("change", e => upd("to", e.target));
+  $("trSwap").addEventListener("click", () => {
+    [TRAVEL.from, TRAVEL.to] = [TRAVEL.to, TRAVEL.from];
+    $("trFrom").value = zoneLabel(TRAVEL.from); $("trTo").value = zoneLabel(TRAVEL.to);
+    travelSave(); renderTravel();
+  });
+  $("trMode").addEventListener("change", e => { TRAVEL.mode = e.target.value; travelSave(); renderTravel(); });
+  $("trNoBlack").addEventListener("change", e => { TRAVEL.noBlack = e.target.checked; travelSave(); renderTravel(); });
+  $("trReset").addEventListener("click", () => { delete TRAVEL.checks[TRAVEL.from + ">" + TRAVEL.to + ">" + TRAVEL.mode]; travelSave(); renderTravel(); });
+  for(const b of document.querySelectorAll("#trQuick button")){
+    b.addEventListener("click", () => {
+      const id = b.dataset.z, f = b.dataset.f;
+      TRAVEL[f] = id; $(f === "from" ? "trFrom" : "trTo").value = zoneLabel(id); travelSave(); renderTravel();
+    });
+  }
+}
 
 init();
 initSite();

@@ -518,6 +518,28 @@ with sync_playwright() as p:
     check(not p6.evaluate("document.documentElement.scrollWidth > window.innerWidth + 2"), "tabs passen op mobiel")
     check(not err6, "geen JS-fouten bij favorieten: %s" % err6)
 
+    # ---------- reisroute ----------
+    p6.set_viewport_size({"width": 1400, "height": 950})
+    p6.click("#tabReis")
+    msg = p6.inner_text("#trMsg")
+    steps = p6.inner_text("#trOut .tr-steps")
+    print("reis:", msg)
+    check("zones overgaan" in msg and "Martlock" in steps and "neem de uitgang naar" in steps, "standaardroute Caerleon → Martlock met stappen")
+    n_steps = p6.locator("#trOut .tr-steps .chk input").count()
+    check(n_steps >= 3, "meerdere stappen (%d)" % n_steps)
+    p6.locator("#trOut .tr-steps .chk input").first.check()
+    check("1 van " in p6.inner_text("#trOut .tr-steps"), "stap afvinken")
+    p6.reload(); p6.wait_for_timeout(300)
+    check("1 van " in p6.inner_text("#trOut .tr-steps"), "vinkjes bewaard na herladen")
+    p6.click("#trSwap")
+    check("Route Martlock → Caerleon" in p6.inner_text("#trOut"), "omwisselen")
+    p6.fill("#trTo", "Bestaat Niet"); p6.press("#trTo", "Tab")
+    check("bad" in (p6.get_attribute("#trTo", "class") or ""), "onbekende zone wordt rood gemarkeerd")
+    p6.click("#trQuick button[data-f='to'][data-z='2000']")
+    check("Route Martlock → Bridgewatch" in p6.inner_text("#trOut"), "snelknop voor bestemming")
+    check(p6.locator("#trOut svg circle").count() > 5, "kaart getekend")
+    check(not err6, "geen JS-fouten bij reisroute: %s" % err6)
+
     browser.close()
 
 print("\nFAILURES:", len(failures))
