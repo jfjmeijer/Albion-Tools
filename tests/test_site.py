@@ -482,6 +482,42 @@ with sync_playwright() as p:
     p5.select_option("#bmSell", "instant")
     check(not err5, "geen JS-fouten bij BM sell order: %s" % err5)
 
+    # ---------- favorieten ----------
+    SPECIAL["T5_MAIN_SWORD"]["Black Market"] = dict(sell=0, buy=130000)
+    ctx6 = browser.new_context(locale="nl-NL", viewport={"width": 1400, "height": 950})
+    p6 = ctx6.new_page()
+    err6 = []
+    p6.on("pageerror", lambda e: err6.append(str(e)))
+    p6.route(re.compile(r"albion-online-data\.com/api/v2/stats/prices/"), prices)
+    p6.route(re.compile(r"albion-online-data\.com/api/v2/stats/history/"), history)
+    p6.goto("file://" + TEST_COPY)
+    p6.evaluate("(() => { const c = document.getElementById('premium'); if(!c.checked){ c.click(); } })()")
+    p6.click("#scanBtn"); p6.wait_for_function(DONE, timeout=90000)
+    T5ROW = lambda pg: pg.locator("#tbody tr").filter(has=pg.locator("span.tier", has_text=re.compile(r"^T5$"))).first
+    T5ROW(p6).locator(".favbtn").click()
+    check(T5ROW(p6).locator(".favbtn").inner_text() == "★" and p6.inner_text("#tabFavs") == "Favorieten (1)", "ster bewaart de route")
+    p6.click("#tabFavs")
+    fv = rows(p6, "#favRoot tbody tr")
+    print("favorieten:", fv)
+    check(fv and fv[0][2] == "Lymhurst → Black Market" and fv[0][5] == "+24.800", "favoriet toont route en winst +24.800")
+    SPECIAL["T5_MAIN_SWORD"]["Black Market"] = dict(sell=0, buy=140000)
+    p6.click("#favCheck")
+    p6.wait_for_function("document.getElementById('favMsg') && document.getElementById('favMsg').textContent.startsWith('Gecheckt')", timeout=30000)
+    fv = rows(p6, "#favRoot tbody tr")
+    check(fv and fv[0][5] == "+34.400", "Check alle rekent met de nieuwe prijs: +34.400 (was %s)" % (fv[0][5] if fv else None))
+    p6.click("#favRoot .cartbtn")
+    check(p6.inner_text("#tabMandje") == "Mandje (1)", "favoriet in het mandje")
+    # instellingen van toen blijven gelden, ook als Markt nu anders staat
+    p6.click("#tabMarkt"); p6.select_option("#bmSell", "order"); p6.click("#tabFavs")
+    fv = rows(p6, "#favRoot tbody tr")
+    check(fv and fv[0][5] == "+34.400", "favoriet houdt zijn eigen verkoopmethode (was %s)" % (fv[0][5] if fv else None))
+    p6.reload(); p6.wait_for_timeout(300)
+    check(p6.inner_text("#tabFavs") == "Favorieten (1)", "favorieten bewaard na herladen")
+    p6.screenshot(path=SHOT_DIR + "/favorieten.png", full_page=True)
+    p6.set_viewport_size({"width": 390, "height": 844}); p6.wait_for_timeout(200)
+    check(not p6.evaluate("document.documentElement.scrollWidth > window.innerWidth + 2"), "tabs passen op mobiel")
+    check(not err6, "geen JS-fouten bij favorieten: %s" % err6)
+
     browser.close()
 
 print("\nFAILURES:", len(failures))

@@ -82,8 +82,8 @@ a{color:var(--accent)}
 .hidden{display:none!important}
 /* ---- site: tabs ---- */
 header{display:flex;flex-wrap:wrap;align-items:flex-end;justify-content:space-between;gap:10px 20px}
-.tabs{display:flex;gap:4px;background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:4px}
-.tabs button{background:none;border:0;color:var(--muted);font:inherit;font-weight:600;padding:7px 16px;border-radius:7px;cursor:pointer}
+.tabs{display:flex;flex-wrap:wrap;gap:4px;background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:4px}
+.tabs button{background:none;border:0;color:var(--muted);font:inherit;font-weight:600;padding:7px 14px;border-radius:7px;cursor:pointer}
 .tabs button[aria-selected=true]{background:var(--accent);color:var(--accent-ink)}
 .banner{margin:0 22px;padding:10px 14px;border:1px solid var(--warn);border-radius:10px;background:rgba(227,164,59,.08);font-size:13px}
 .banner b{color:var(--warn)}
@@ -97,15 +97,21 @@ header{display:flex;flex-wrap:wrap;align-items:flex-end;justify-content:space-be
 .cartbar{grid-column:1/-1;position:sticky;bottom:10px;z-index:4;display:flex;gap:12px;align-items:center;justify-content:space-between;flex-wrap:wrap;
   background:#1f2633;border:1px solid var(--accent);border-radius:12px;padding:10px 14px;box-shadow:0 6px 24px rgba(0,0,0,.45)}
 .cartbar .btn.primary{flex:0 0 auto}
-#viewCart,#viewOrders{display:block;max-width:1100px}
-#viewCart.hidden,#viewOrders.hidden{display:none!important}
+#viewCart,#viewOrders,#viewFavs{display:block;max-width:1200px}
+#viewCart.hidden,#viewOrders.hidden,#viewFavs.hidden{display:none!important}
+.favbtn{background:none;border:1px solid var(--line);color:var(--muted);border-radius:6px;padding:1px 7px;font:inherit;font-size:13px;cursor:pointer;margin-right:4px}
+.favbtn.on{color:var(--accent);border-color:var(--accent)}
+.fav-na{color:var(--muted);font-size:12.5px}
+.fav-table{min-width:980px}
+td.neg{color:var(--bad);font-weight:600}
 .planner{margin:0;border-top:0;border-bottom:1px solid var(--line);padding:10px 16px}
 .planner summary{color:var(--text)}
 .planner summary span{color:var(--muted);font-size:12.5px}
 .planner-form{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:0 10px;margin-top:10px}
 .planner-form .pl-route{grid-column:1/-1}
 .plan-sum{margin:4px 0 8px;font-weight:600}
-.planner .btn.primary,#ordRoot .btn.primary{flex:0 0 auto}
+.planner .btn.primary,#ordRoot .btn.primary,#favRoot .btn.primary{flex:0 0 auto}
+#favRoot .btns,#ordRoot .btns{align-items:center}
 .planner .btns{align-items:center}
 .plan-wrap{overflow:auto;border:1px solid var(--line);border-radius:10px;margin-bottom:10px}
 .plan-table{min-width:560px}
@@ -179,6 +185,7 @@ td.pos{color:var(--good);font-weight:600} td.neg{color:var(--bad);font-weight:60
   </div>
   <nav class="tabs" role="tablist" aria-label="Tools">
     <button type="button" role="tab" id="tabMarkt" data-view="markt" aria-selected="true">Markt</button>
+    <button type="button" role="tab" id="tabFavs" data-view="favorieten" aria-selected="false">Favorieten<span id="favCount"></span></button>
     <button type="button" role="tab" id="tabOrders" data-view="orders" aria-selected="false">Orders<span id="ordCount"></span></button>
     <button type="button" role="tab" id="tabMandje" data-view="mandje" aria-selected="false">Mandje<span id="cartCount"></span></button>
     <button type="button" role="tab" id="tabLogboek" data-view="logboek" aria-selected="false">Logboek</button>
@@ -216,7 +223,7 @@ td.pos{color:var(--good);font-weight:600} td.neg{color:var(--bad);font-weight:60
         <li>Dubbelklik <b>start-albion-prive.bat</b> vóór je gaat spelen. Dat start het hulpprogramma en de client, die nu alleen naar je eigen pc stuurt.</li>
         <li>Vink hierboven “Gebruik live data van mijn pc” aan. Geeft je browser een melding over je lokale netwerk, klik dan op Toestaan.</li>
         <li>Open in Albion de markt of Black Market; binnen ±15 seconden zie je de prijzen en aantallen hier.</li>
-        <li>Voor verkocht per dag en de gemiddelde prijs: open het <b>verkoopvenster</b> van een item dat je bij je hebt (ook bij de Black Market) en kies in de grafiek 7 dagen of 4 weken. Je hoeft niets te verkopen.</li>
+        <li>Voor verkocht per dag en de gemiddelde prijs: open het <b>verkoopvenster</b> (ook bij de Black Market). Je hebt één exemplaar van de itemsoort nodig; tier, enchant en kwaliteit kies je in het venster zelf. Kies in de grafiek 7 dagen of 4 weken, voor elke variant die je wilt weten. Je hoeft niets te verkopen.</li>
       </ol>
     </details>
   </div>
@@ -379,6 +386,8 @@ td.pos{color:var(--good);font-weight:600} td.neg{color:var(--bad);font-weight:60
   <button type="button" class="btn primary" id="cartBarBtn">Naar mandje →</button>
 </div>
 </main>
+
+<main id="viewFavs" class="hidden"><section class="cart" id="favRoot" aria-label="Favorieten"></section></main>
 
 <main id="viewOrders" class="hidden"><section class="cart" id="ordRoot" aria-label="Orders"></section></main>
 
@@ -1405,6 +1414,10 @@ function render(){
       });
       kb.after(ob);
     }
+    const fb = document.createElement("button"); fb.type = "button"; fb.className = "favbtn";
+    setFavBtn(fb, isFav(r));
+    fb.addEventListener("click", () => favToggle(r, fb));
+    td7.insertBefore(fb, td7.firstChild);
     const lb = document.createElement("button"); lb.type = "button"; lb.className = "logbtn"; lb.textContent = "Log";
     lb.title = "Zet deze kans klaar in het logboek";
     lb.addEventListener("click", () => logFromRow(r));
@@ -1574,7 +1587,7 @@ function init(){
    Site: tabs, hosting en downloadversie
    ================================================================= */
 const IN_CLAUDE = !!(window.claude && typeof window.claude.use === "function");
-const VIEWS = {markt:"viewMarkt", orders:"viewOrders", mandje:"viewCart", logboek:"viewLog"};
+const VIEWS = {markt:"viewMarkt", favorieten:"viewFavs", orders:"viewOrders", mandje:"viewCart", logboek:"viewLog"};
 let currentView = "markt";
 
 function showView(v){
@@ -1586,6 +1599,7 @@ function showView(v){
   if(v === "logboek") renderLog();
   if(v === "mandje") renderCart();
   if(v === "orders") renderOrders();
+  if(v === "favorieten") renderFavs();
 }
 function viewFromHash(){ const h = (location.hash || "").replace(/^#/, ""); return VIEWS[h] ? h : "markt"; }
 
@@ -2139,6 +2153,7 @@ function initSite(){
   initLog();
   initCart();
   initOrders();
+  initFavs();
   showView(viewFromHash());
 }
 
@@ -2717,6 +2732,173 @@ function addFilledToCart(o){
   CART.stage = "select"; cartSave(); updateCartUi();
 }
 function initOrders(){ ordLoad(); updateOrdersUi(); }
+
+
+/* =================================================================
+   Favorieten: vaste trade- en craftroutes
+   ================================================================= */
+const FAV_KEY = "albionFavorieten.v1";
+const FAV = {list:[], checked:null, res:new Map(), busy:false};
+function favSave(){ try{ localStorage.setItem(FAV_KEY, JSON.stringify({list:FAV.list, checked:FAV.checked})); }catch(e){} }
+function favLoad(){
+  try{
+    const j = JSON.parse(localStorage.getItem(FAV_KEY) || "null");
+    if(j && Array.isArray(j.list)) FAV.list = j.list.filter(f => f && f.key && f.itemId && f.mode);
+    if(j && Number.isFinite(j.checked)) FAV.checked = j.checked;
+  }catch(e){}
+}
+function favKeyOf(r){ return [S.mode, r.id, r.quality, r.from, r.to].join("|"); }
+function isFav(r){ const k = favKeyOf(r); return FAV.list.some(f => f.key === k); }
+function favToggle(r, btn){
+  const k = favKeyOf(r), i = FAV.list.findIndex(f => f.key === k);
+  if(i >= 0) FAV.list.splice(i, 1);
+  else FAV.list.push({key:k, mode:S.mode, itemId:r.id, quality:r.quality, name:r.name, tier:r.tier, ench:r.ench, from:r.from, to:r.to,
+    buyMethod:S.buyMethod, sellMethod:S.sellMethod, bmSell:S.bmSell, rrr:S.rrr, focus:S.focus, rrrCustom:S.rrrCustom,
+    stationFee:S.stationFee, useAvg:S.useAvg, saved:Date.now(), lastProfit:r.profit});
+  favSave(); updateFavUi();
+  if(btn) setFavBtn(btn, i < 0);
+}
+function setFavBtn(btn, on){
+  btn.textContent = on ? "★" : "☆";
+  btn.classList.toggle("on", on);
+  btn.title = on ? "Bewaard als favoriet (klik om te verwijderen)" : "Bewaar als vaste route in Favorieten";
+  btn.setAttribute("aria-pressed", on ? "true" : "false");
+}
+function updateFavUi(){
+  $("favCount").textContent = FAV.list.length ? " (" + FAV.list.length + ")" : "";
+  if(currentView === "favorieten") renderFavs();
+}
+// rekent één favoriet door met dezelfde code als Markt, met de instellingen van toen hij bewaard werd
+function withSettings(over, fn){
+  const keep = {};
+  for(const k of Object.keys(over)){ keep[k] = S[k]; S[k] = over[k]; }
+  try{ return fn(); } finally { for(const k of Object.keys(keep)) S[k] = keep[k]; }
+}
+function evalFav(f){
+  const p = parseId(f.itemId);
+  if(!p) return null;
+  const base = {mode:f.mode, buyMethod:f.buyMethod || "instant", sellMethod:f.sellMethod || "instant", bmSell:f.bmSell || "instant",
+    rrr:f.rrr || "best", focus:!!f.focus, rrrCustom:Number.isFinite(f.rrrCustom) ? f.rrrCustom : S.rrrCustom,
+    stationFee:Number.isFinite(f.stationFee) ? f.stationFee : S.stationFee, useAvg:!!f.useAvg,
+    q:"", minProfit:-Infinity, minRoi:-Infinity, maxRoi:0, maxBuy:0, art:"all", showAll:true,
+    cats:new Set([p.it.c]), tiers:new Set([p.tier]), ench:new Set([p.e])};
+  let snap = null;
+  const row = withSettings(f.mode === "craft" ? {...base, craftSell:new Set([f.to])}
+    : {...base, buyCities:new Set([f.from]), sellCities:new Set([f.to]), routeSell:new Set([f.to]), orderSell:new Set([f.to])}, () => {
+    const res = f.mode === "craft" ? computeCrafts() : computeFlips();
+    const r = res.rows.find(x => x.id === f.itemId && x.quality === f.quality && x.to === f.to && (f.mode === "craft" || x.from === f.from));
+    if(r){ attachVol(r); snap = cartSnapshot(r); }
+    return r || null;
+  });
+  return row ? {row, snap} : null;
+}
+async function checkFavs(){
+  const msg = $("favMsg");
+  if(!FAV.list.length){ msg.textContent = "Nog geen favorieten."; return; }
+  if(scanning){ msg.textContent = "Er loopt al een scan; wacht tot die klaar is."; return; }
+  const flips = FAV.list.filter(f => f.mode !== "craft"), crafts = FAV.list.filter(f => f.mode === "craft");
+  const jobs = [];
+  if(flips.length) jobs.push({ids:[...new Set(flips.map(f => f.itemId))], locs:[...new Set(flips.flatMap(f => [f.from, f.to]))],
+    q:[...new Set(flips.map(f => f.quality))].sort().join(",")});
+  if(crafts.length){
+    jobs.push({ids:[...new Set(crafts.map(f => f.itemId))], locs:[...new Set(crafts.map(f => f.to))], q:"1"});
+    const mats = new Set();
+    for(const f of crafts){ const p = parseId(f.itemId); const rec = p && recipeFor(p.it, p.tier, p.e); if(rec) for(const c of rec) mats.add(c[0]); }
+    if(mats.size) jobs.push({ids:[...mats], locs:[...S.matCities], q:"1"});
+  }
+  const urls = jobs.flatMap(urlsForJob);
+  setBusy(true); ctrl = new AbortController();
+  let failed = 0, fatal = false, done = 0;
+  try{
+    for(const u of urls){
+      msg.textContent = "Prijzen ophalen… " + (++done) + " van " + urls.length;
+      try{ ingest(await fetchJson(u, ctrl.signal)); }
+      catch(e){ if(e.name === "AbortError") break; if(e instanceof TypeError){ fatal = true; break; } failed++; }
+    }
+    if(!fatal && !ctrl.signal.aborted){
+      // verkoopvolume en gemiddelde prijs van de favorieten
+      const ids = [...new Set(FAV.list.map(f => f.itemId))];
+      const locs = [...new Set(FAV.list.flatMap(f => f.mode === "craft" ? [f.to] : [f.from, f.to]))];
+      const qs = [...new Set(FAV.list.map(f => f.quality))].sort();
+      for(const ch of histChunks(ids, locs, qs)){
+        msg.textContent = "Volume ophalen…";
+        try{
+          const data = await fetchJson(ch.url, ctrl.signal);
+          ingestHistory(data);
+          const t = Date.now();
+          for(const id of ch.ids) for(const q of qs) for(const l of locs){ const k = volKey(id, q, l); if(!volStore.has(k)) volStore.set(k, {none:true, t}); }
+        }catch(e){ if(e.name === "AbortError") break; failed++; }
+      }
+    }
+    if(S.local){ await mergeLocal(0); await mergeLocalHistory(0); }
+  }finally{ setBusy(false); }
+  FAV.checked = Date.now(); favSave();
+  FAV.msg = fatal ? CORS_HINT : failed ? failed + " verzoeken mislukt; probeer het nog eens." : "Gecheckt met de prijzen van nu.";
+  renderFavs();
+}
+function renderFavs(){
+  const root = $("favRoot"); root.textContent = "";
+  const head = el("div", "cart-head"); head.appendChild(el("h2", null, "Favorieten")); root.appendChild(head);
+  root.appendChild(el("p", "est", "Je vaste trade- en craftroutes. Bewaar een kans in Markt met ☆; hij rekent daarna steeds met de instellingen van toen (koop- en verkoopmethode, RRR, gemiddelde prijs). “Check alle” haalt alleen de prijzen op die je favorieten nodig hebben."));
+  if(!FAV.list.length){ root.appendChild(el("div", "empty", "Nog geen favorieten. Klik in Markt bij een kans op ☆ om hem hier te bewaren.")); return; }
+  const lastMsg = FAV.msg || ""; FAV.msg = "";
+  const bar = el("div", "btns");
+  const chk = el("button", "btn primary", "Check alle"); chk.type = "button"; chk.id = "favCheck";
+  chk.addEventListener("click", checkFavs);
+  const m = el("span", "est", lastMsg || (FAV.checked ? "Laatst gecheckt " + fmtAge(FAV.checked) + " geleden." : "Nog niet gecheckt.")); m.id = "favMsg";
+  bar.append(chk, m); root.appendChild(bar);
+  const results = FAV.list.map(f => ({f, ev:evalFav(f)}));
+  results.sort((a, b) => ((b.ev && b.ev.row.pot) || -1) - ((a.ev && a.ev.row.pot) || -1) || ((b.ev && b.ev.row.profit) || -1e12) - ((a.ev && a.ev.row.profit) || -1e12));
+  const daySum = results.reduce((s, x) => s + (x.ev && x.ev.row.pot > 0 ? x.ev.row.pot : 0), 0);
+  if(daySum) root.appendChild(el("p", "plan-sum", "Samen ±" + fmtS(daySum) + " winst per dag als je elke route doet tot het dagvolume (" + results.filter(x => x.ev && x.ev.row.pot > 0).length + " routes met volume)."));
+  const wrap = el("div", "results"), tw = el("div", "tablewrap"), t = el("table", "cart-table fav-table"), hr = el("tr");
+  for(const [l, n] of [["Item"], ["Soort"], ["Route"], ["Kosten", 1], ["Verkoop", 1], ["Winst", 1], ["ROI", 1], ["Verk./dag", 1], ["Winst/dag", 1], [""]]){
+    const th = el("th", n ? "num" : null, l); th.style.cursor = "default"; hr.appendChild(th);
+  }
+  const thead = el("thead"); thead.appendChild(hr); t.appendChild(thead);
+  const tb = el("tbody");
+  for(const {f, ev} of results){
+    const tr = el("tr");
+    const td = el("td"); td.append(el("span", "tier", "T" + f.tier + (f.ench ? "." + f.ench : "")), document.createTextNode(f.name));
+    if(f.quality > 1) td.appendChild(el("span", "q", QNAME[f.quality] || "Q" + f.quality));
+    tr.append(td, el("td", null, MODE_LABEL[f.mode] || f.mode));
+    const r = ev && ev.row;
+    const route = f.mode === "craft" ? "craft " + ((r && r.craft && r.craft.city) || "–") + " → " + (f.to === BM ? "Black Market" : f.to)
+      : f.from + " → " + (f.to === BM ? "Black Market" : f.to);
+    tr.appendChild(el("td", null, route));
+    if(r){
+      const tc = el("td", "num", fmt(r.costUnit != null ? r.costUnit : r.buy)); tc.appendChild(ageSpan(r.buyT, r.buyQty));
+      const ts = el("td", "num", fmt(r.sell));
+      if(r.sellAvg) ts.appendChild(el("span", "age mid", "gem. 7 dagen")); else ts.appendChild(ageSpan(r.sellT, r.sellQty));
+      const tp = el("td", "num " + (r.profit >= 0 ? "profit" : "neg"), (r.profit >= 0 ? "+" : "−") + fmt(Math.abs(r.profit)));
+      tr.append(tc, ts, tp, el("td", "num", r.roi.toFixed(1) + "%"), volCell(r), el("td", "num", r.pot != null ? fmt(r.pot) : "–"));
+    }else{
+      const na = el("td", "fav-na", store.has(f.itemId + "|" + f.quality) ? "Geen verse prijzen (ouder dan " + S.maxAge + " u of ontbrekend)" : "Klik op “Check alle” voor de prijzen van nu");
+      na.colSpan = 6; tr.appendChild(na);
+    }
+    const ta = el("td");
+    if(ev){
+      const cb = el("button", "cartbtn", "+ Mandje"); cb.type = "button";
+      cb.addEventListener("click", () => {
+        const snap = {...ev.snap, key:"fav|" + ev.snap.key};
+        if(!CART.items.some(x => x.key === snap.key)){ CART.items.push(snap); CART.stage = "select"; cartSave(); updateCartUi(); }
+        cb.textContent = "✓ In mandje"; cb.classList.add("on");
+      });
+      ta.appendChild(cb);
+    }
+    ta.appendChild(copyBtn(f.name));
+    const del = el("button", "del", "Verwijder"); del.type = "button"; del.style.marginLeft = "4px";
+    del.addEventListener("click", () => {
+      if(del.dataset.armed){ FAV.list = FAV.list.filter(x => x.key !== f.key); favSave(); updateFavUi(); return; }
+      del.dataset.armed = "1"; del.textContent = "Zeker?"; del.classList.add("confirm");
+    });
+    ta.appendChild(del);
+    tr.appendChild(ta);
+    tb.appendChild(tr);
+  }
+  t.appendChild(tb); tw.appendChild(t); wrap.appendChild(tw); root.appendChild(wrap);
+}
+function initFavs(){ favLoad(); updateFavUi(); }
 
 init();
 initSite();

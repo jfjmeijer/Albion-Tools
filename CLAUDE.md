@@ -8,7 +8,8 @@ UI-tekst is Nederlands. Joris wil korte, scanbare uitleg.
   `python3 -I tools/build_data.py <items.txt> <items.json> src/template.html index.html`
   (items.txt en items.json uit github.com/ao-data/ao-bin-dumps, map `formatted/`; niet committen).
 - Test: `python3 -I tests/test_ui.py index.html /tmp/copy.html /tmp` en `tests/test_site.py` (zelfde argumenten). De tests verwachten items.json op `/home/claude/dl/itemsjson/items.json`; pas dat pad aan als het ergens anders staat.
-- Tabs nu: Markt (modi BM, Stad → stad, Routes, Buy orders, Craften; Laadplanner boven de resultaten), Orders, Mandje, Logboek.
+- Tabs nu: Markt (modi BM, Stad → stad, Routes, Buy orders, Craften; Laadplanner boven de resultaten), Favorieten, Orders, Mandje, Logboek.
+- Favorieten (`albionFavorieten.v1`, `{list,checked}`): elke favoriet bewaart modus, route en instellingen van toen; `evalFav` rekent hem door via `withSettings` + computeFlips/computeCrafts.
 - Craftbonussen per stad: `tools/craftingbonus.json` (uit ao-bin-dumps `craftingmodifiers.json`, clusters 0000 Thetford, 1000 Lymhurst, 2000 Bridgewatch, 3004 Martlock, 4000 Fort Sterling, 3003 Caerleon, 5000 Brecilien). RRR = 1 − 1/(1 + basis 0,18 + bonus itemsoort + focus 0,59). Items krijgen `cc` (craftingcategory).
 - Nieuwe tool = nieuwe tab: een `<main id="view…">`, een knop in `.tabs` (data-view) en een sleutel in `VIEWS`.
 
