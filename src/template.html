@@ -69,6 +69,7 @@ tr.detail td{white-space:normal;background:var(--panel2);padding:10px 16px 12px 
 .tier{display:inline-block;min-width:34px;text-align:center;margin-right:8px;padding:1px 6px;border-radius:5px;background:var(--panel2);border:1px solid var(--line);font-size:12px;color:var(--accent);font-weight:700}
 .q{margin-left:6px;font-size:11px;color:var(--warn)}
 .age{display:block;font-size:11px;color:var(--muted)}
+.age.outl{color:var(--bad);font-weight:600}
 .age.fresh{color:var(--good)} .age.mid{color:var(--warn)} .age.old{color:var(--bad)}
 .profit{color:var(--good);font-weight:700}
 .vol{color:var(--text)} .vol.low{color:var(--bad)} .vol.mid{color:var(--warn)} .vol.na{color:var(--muted)}
@@ -97,8 +98,17 @@ header{display:flex;flex-wrap:wrap;align-items:flex-end;justify-content:space-be
 .cartbar{grid-column:1/-1;position:sticky;bottom:10px;z-index:4;display:flex;gap:12px;align-items:center;justify-content:space-between;flex-wrap:wrap;
   background:#1f2633;border:1px solid var(--accent);border-radius:12px;padding:10px 14px;box-shadow:0 6px 24px rgba(0,0,0,.45)}
 .cartbar .btn.primary{flex:0 0 auto}
-#viewCart,#viewOrders,#viewFavs,#viewTravel{display:block;max-width:1200px}
-#viewCart.hidden,#viewOrders.hidden,#viewFavs.hidden,#viewTravel.hidden{display:none!important}
+#viewCart,#viewOrders,#viewFavs,#viewTravel,#viewIns{display:block;max-width:1200px}
+#viewCart.hidden,#viewOrders.hidden,#viewFavs.hidden,#viewTravel.hidden,#viewIns.hidden{display:none!important}
+.toasts{position:fixed;right:16px;bottom:16px;display:flex;flex-direction:column;gap:8px;z-index:50;max-width:min(380px,calc(100vw - 32px))}
+.toast{position:relative;background:#1f2633;border:1px solid var(--accent);border-radius:10px;padding:10px 30px 10px 12px;font-size:13px;box-shadow:0 6px 24px rgba(0,0,0,.45)}
+.toast b{display:block;color:var(--accent);margin-bottom:2px}
+.toast-x{position:absolute;top:4px;right:6px;background:none;border:0;color:var(--muted);font-size:18px;cursor:pointer}
+.alarm-row{display:flex;flex-wrap:wrap;gap:10px;align-items:center}
+.alarm-row .check{margin:0}
+.alarm-row select{width:auto}
+.alarm-in{width:90px!important;padding:3px 6px!important;font-size:12px!important;margin-left:4px}
+tr.tot td{font-weight:700;border-top:2px solid var(--line)}
 .tr-form{display:flex;flex-direction:column;gap:6px}
 .tr-row{display:grid;grid-template-columns:1fr auto 1fr;gap:10px;align-items:end}
 .tr-row .btn{margin-bottom:9px}
@@ -204,6 +214,7 @@ td.pos{color:var(--good);font-weight:600} td.neg{color:var(--bad);font-weight:60
     <button type="button" role="tab" id="tabOrders" data-view="orders" aria-selected="false">Orders<span id="ordCount"></span></button>
     <button type="button" role="tab" id="tabMandje" data-view="mandje" aria-selected="false">Mandje<span id="cartCount"></span></button>
     <button type="button" role="tab" id="tabReis" data-view="reis" aria-selected="false">Reisroute</button>
+    <button type="button" role="tab" id="tabIns" data-view="inzicht" aria-selected="false">Inzicht</button>
     <button type="button" role="tab" id="tabLogboek" data-view="logboek" aria-selected="false">Logboek</button>
   </nav>
 </header>
@@ -357,6 +368,11 @@ td.pos{color:var(--good);font-weight:600} td.neg{color:var(--bad);font-weight:60
       <label class="field"><span>Min. ROI (%)</span><input type="number" id="minRoi" min="0" step="1"></label>
       <label class="field"><span>Max. ROI (%) – verbergt uitschieters</span><input type="number" id="maxRoi" min="0" step="10"></label>
     </div>
+    <div class="row2">
+      <label class="check" style="align-self:end;margin-bottom:12px"><input type="checkbox" id="hideOut"><span>Verberg uitschieters</span></label>
+      <label class="field"><span>Uitschieter vanaf</span>
+        <select id="outPct"><option value="0.25">25% boven gem.</option><option value="0.4">40% boven gem.</option><option value="0.75">75% boven gem.</option><option value="1">100% boven gem.</option></select></label>
+    </div>
     <label class="field"><span>Zoek op naam</span><input type="text" id="q" placeholder="bijv. bow, soldier, cape, ore"></label>
     <div class="row2">
       <label class="field"><span>Rijen tonen</span>
@@ -434,6 +450,9 @@ td.pos{color:var(--good);font-weight:600} td.neg{color:var(--bad);font-weight:60
   <datalist id="zoneList"></datalist>
 </section></main>
 
+<main id="viewIns" class="hidden"><section class="cart" id="insRoot" aria-label="Inzicht"></section></main>
+<div class="toasts" id="toasts" aria-live="polite"></div>
+
 <main id="viewLog" class="hidden">
 <aside class="panel" aria-label="Logboek invoer">
   <div class="group">
@@ -449,6 +468,10 @@ td.pos{color:var(--good);font-weight:600} td.neg{color:var(--bad);font-weight:60
       <label class="field"><span>Aantal</span><input type="number" id="lgQty" min="1" step="1" value="1"></label>
     </div>
     <p class="amountPreview" id="lgPreview"></p>
+    <div class="row2">
+      <label class="field"><span>Tijd bezig (min, optioneel)</span><input type="number" id="lgMin" min="0" step="5" placeholder="bijv. 45"></label>
+      <label class="field"><span>Verkoopomzet (optioneel)</span><input type="text" id="lgRev" inputmode="decimal" placeholder="totaal verkocht"></label>
+    </div>
     <label class="field"><span>Datum en tijd</span><input type="datetime-local" id="lgDate"></label>
     <div class="btns"><button type="button" class="btn primary" id="lgAdd">Toevoegen</button></div>
     <div class="status" id="lgStatus" role="status" aria-live="polite"></div>
@@ -536,7 +559,7 @@ const S = {
   rrr:"best", focus:false, rrrCustom:40, stationFee:0,
   orderSell:new Set([BM, ...CITIES]),
   plBudget:1000000, plKg:0, plPct:0.5, plMax:5, plRoute:"auto",
-  q:"", showAll:false, limit:100, volAuto:true, minVol:0, volN:200, local:false, useAvg:false, bmSell:"instant",
+  q:"", showAll:false, limit:100, volAuto:true, minVol:0, volN:200, local:false, useAvg:false, bmSell:"instant", hideOut:false, outPct:0.4,
   routeSell:new Set([BM, ...CITIES])
 };
 let sort = {k:"profit", dir:-1};
@@ -571,6 +594,8 @@ function loadSettings(){
     if(typeof j.local === "boolean") S.local = j.local;
     if(typeof j.useAvg === "boolean") S.useAvg = j.useAvg;
     if(j.bmSell === "instant" || j.bmSell === "order") S.bmSell = j.bmSell;
+    if(typeof j.hideOut === "boolean") S.hideOut = j.hideOut;
+    if([0.25, 0.4, 0.75, 1].includes(j.outPct)) S.outPct = j.outPct;
     for(const k of ["plBudget", "plKg", "plMax"]) if(Number.isFinite(j[k]) && j[k] >= 0) S[k] = j[k];
     if([0.25, 0.5, 1].includes(j.plPct)) S.plPct = j.plPct;
     if(typeof j.plRoute === "string") S.plRoute = j.plRoute;
@@ -898,6 +923,7 @@ async function pollLocal(first){
     localStatus("Verbonden · " + (st.orders || 0).toLocaleString("nl-NL") + " orders" + (st.histories ? " en " + st.histories + " verkoopgeschiedenissen" : "") + " van je pc" +
       (last ? " · laatste upload " + fmtAge(last) + " geleden" : " · nog niets ontvangen: open een markt in Albion") +
       (unknown.length ? " · onbekende plekken: " + unknown.slice(0, 3).join(", ") : ""), "ok");
+    if(n > 0 || nh > 0) alarmEval();
     if(n > 0 || nh > 0){ clearTimeout(LOCAL.renderT); LOCAL.renderT = setTimeout(() => { if(!scanning) render(); }, 300); }
   }
   clearTimeout(LOCAL.timer);
@@ -1302,8 +1328,14 @@ function sortRows(rows, k, dir){
 }
 function pipeline(){
   const res = compute();
-  for(const r of res.rows){ attachVol(r); r.ppk = r.kg > 0 ? r.profit / r.kg : null; }
+  for(const r of res.rows){
+    attachVol(r); r.ppk = r.kg > 0 ? r.profit / r.kg : null;
+    // uitschieter: huidige verkoopprijs ver boven het 7-daagse gemiddelde van die plek
+    const avg = r.sellAvg ? null : avgOf(r.id, r.quality, r.to);
+    r.outlier = avg && r.sell > avg * (1 + S.outPct) ? {pct:r.sell / avg - 1, avg} : null;
+  }
   let kept = S.minVol > 0 ? res.rows.filter(r => r.vEff != null && r.vEff >= S.minVol) : res.rows;
+  if(S.hideOut) kept = kept.filter(r => !r.outlier);
   if((S.mode === "routes" || S.mode === "orders") && !S.showAll){
     const best = new Map();
     const score = r => [r.pot == null ? -1 : r.pot, r.profit];
@@ -1408,6 +1440,12 @@ function render(){
     const td4 = document.createElement("td"); td4.className = "num"; td4.textContent = fmt(r.sell);
     if(r.sellAvg){ const g = document.createElement("span"); g.className = "age mid"; g.textContent = "gem. 7 dagen"; g.title = "Gemiddelde verkoopprijs van de laatste 7 dagen (uit de history)"; td4.appendChild(g); }
     else td4.appendChild(ageSpan(r.sellT, r.sellQty));
+    if(r.outlier){
+      const w = document.createElement("span"); w.className = "age outl";
+      w.textContent = "⚠ +" + Math.round(r.outlier.pct * 100) + "% boven gem.";
+      w.title = "Uitschieter: het 7-daagse gemiddelde is " + fmt(r.outlier.avg) + ". Vaak één los item of een troll-order; check in-game.";
+      td4.appendChild(w);
+    }
     const td5 = document.createElement("td"); td5.className = "num profit"; td5.textContent = "+" + fmt(r.profit);
     const td6 = document.createElement("td"); td6.className = "num"; td6.textContent = r.roi.toFixed(1) + "%";
     const tdV = volCell(r);
@@ -1591,6 +1629,9 @@ function init(){
   $("volN").addEventListener("change", e => { S.volN = +e.target.value; updateVolEst(); changed(); });
   $("server").addEventListener("change", e => { S.server = e.target.value; volStore.clear(); changed(true); });
   $("volAuto").addEventListener("change", e => { S.volAuto = e.target.checked; changed(); });
+  $("hideOut").checked = S.hideOut; $("outPct").value = String(S.outPct);
+  $("hideOut").addEventListener("change", e => { S.hideOut = e.target.checked; changed(); });
+  $("outPct").addEventListener("change", e => { S.outPct = +e.target.value; changed(); });
   $("bmSell").value = S.bmSell;
   $("bmSell").addEventListener("change", e => { S.bmSell = e.target.value; changed(); });
   $("useAvg").checked = S.useAvg;
@@ -1628,7 +1669,7 @@ function init(){
    Site: tabs, hosting en downloadversie
    ================================================================= */
 const IN_CLAUDE = !!(window.claude && typeof window.claude.use === "function");
-const VIEWS = {markt:"viewMarkt", favorieten:"viewFavs", orders:"viewOrders", mandje:"viewCart", reis:"viewTravel", logboek:"viewLog"};
+const VIEWS = {markt:"viewMarkt", favorieten:"viewFavs", orders:"viewOrders", mandje:"viewCart", reis:"viewTravel", inzicht:"viewIns", logboek:"viewLog"};
 let currentView = "markt";
 
 function showView(v){
@@ -1642,6 +1683,7 @@ function showView(v){
   if(v === "orders") renderOrders();
   if(v === "favorieten") renderFavs();
   if(v === "reis") renderTravel();
+  if(v === "inzicht"){ renderInsight(); fetchGold(false); }
 }
 function viewFromHash(){ const h = (location.hash || "").replace(/^#/, ""); return VIEWS[h] ? h : "markt"; }
 
@@ -1704,7 +1746,7 @@ function fmtS(n){
   const a = Math.abs(n), sg = n < 0 ? "−" : "";
   if(a >= 1e9) return sg + (a / 1e9).toLocaleString("nl-NL", {maximumFractionDigits:2}) + "b";
   if(a >= 1e6) return sg + (a / 1e6).toLocaleString("nl-NL", {maximumFractionDigits:1}) + "m";
-  if(a >= 1e3) return sg + Math.round(a / 1e3).toLocaleString("nl-NL") + "k";
+  if(a >= 1e3) return sg + (a / 1e3).toLocaleString("nl-NL", {maximumFractionDigits:a < 1e5 ? 2 : 0}) + "k";
   return sg + Math.round(a);
 }
 const signed = n => (n > 0 ? "+" : n < 0 ? "−" : "") + fmt(Math.abs(n));
@@ -1720,7 +1762,8 @@ function cleanEntry(x){
   if(!Number.isFinite(t) || !Number.isFinite(amount)) return null;
   const type = x.type === "exp" ? "exp" : "win";
   return {id:String(x.id || newId()).replace(/[^\w-]/g, "").slice(0, 40) || newId(), t, type,
-    cat:String(x.cat || "Overig").slice(0, 60), note:String(x.note || "").slice(0, 120), qty, amount:Math.round(amount)};
+    cat:String(x.cat || "Overig").slice(0, 60), note:String(x.note || "").slice(0, 120), qty, amount:Math.round(amount),
+    ...(Number(x.min) > 0 ? {min:Math.round(Number(x.min))} : {}), ...(Number(x.rev) > 0 ? {rev:Math.round(Number(x.rev))} : {})};
 }
 function setEntriesFromMonths(){
   L.entries = [...L.months.values()].flat().sort((a, b) => a.t - b.t);
@@ -1840,6 +1883,7 @@ function localInputValue(t){
 }
 function updatePreview(){
   const a = parseSilver($("lgAmount").value), q = Math.max(1, Math.round(Number($("lgQty").value) || 1));
+  if(L.revUnit) $("lgRev").value = String(L.revUnit * q);
   const p = $("lgPreview");
   if($("lgAmount").value.trim() === ""){ p.textContent = ""; return; }
   if(a == null){ p.textContent = "Geen geldig bedrag. Voorbeelden: 25000, 250k, 1,2m"; return; }
@@ -1853,10 +1897,13 @@ function addFromForm(){
   if(L.type === "exp" && a < 0){ lgStatus("Een uitgave is een positief bedrag. Kies ‘Winst’ voor een negatieve winst.", "err"); return; }
   const qty = Math.max(1, Math.round(Number($("lgQty").value) || 1));
   const dv = $("lgDate").value, t = dv ? new Date(dv).getTime() : Date.now();
-  const e = cleanEntry({id:newId(), t:Number.isFinite(t) ? t : Date.now(), type:L.type, cat:$("lgCat").value, note:$("lgNote").value.trim(), qty, amount:a * qty});
+  const rev = parseSilver($("lgRev").value);
+  const e = cleanEntry({id:newId(), t:Number.isFinite(t) ? t : Date.now(), type:L.type, cat:$("lgCat").value, note:$("lgNote").value.trim(), qty, amount:a * qty,
+    min:Number($("lgMin").value) || 0, rev:L.type === "win" && rev > 0 ? rev : 0});
   addEntries([e]);
   lgStatus("Toegevoegd: " + signed(netOf(e)) + " silver (" + e.cat + ").", "ok");
   $("lgAmount").value = ""; $("lgNote").value = ""; $("lgQty").value = "1"; $("lgDate").value = localInputValue(Date.now());
+  $("lgMin").value = ""; $("lgRev").value = ""; L.revUnit = null;
   updatePreview();
 }
 function logFromRow(r){
@@ -1868,6 +1915,7 @@ function logFromRow(r){
   $("lgCat").value = cat;
   $("lgNote").value = ("T" + r.tier + (r.ench ? "." + r.ench : "") + " " + r.name + " · " + (r.from === "Craft" ? "craft → " + r.to : r.from + " → " + r.to)).slice(0, 120);
   $("lgAmount").value = String(Math.round(r.profit));
+  L.revUnit = Math.round(r.sell); $("lgRev").value = String(L.revUnit);
   $("lgQty").value = "1";
   $("lgDate").value = localInputValue(Date.now());
   updatePreview();
@@ -1882,8 +1930,8 @@ function exportJson(){
 }
 function exportCsv(){
   const q = v => '"' + String(v).replace(/"/g, '""') + '"';
-  const lines = ["Datum;Soort;Actie;Omschrijving;Aantal;Bedrag"];
-  for(const e of L.entries) lines.push([q(new Date(e.t).toLocaleString("nl-NL")), e.type === "exp" ? "Uitgave" : "Winst", q(e.cat), q(e.note), e.qty, netOf(e)].join(";"));
+  const lines = ["Datum;Soort;Actie;Omschrijving;Aantal;Bedrag;Minuten;Omzet"];
+  for(const e of L.entries) lines.push([q(new Date(e.t).toLocaleString("nl-NL")), e.type === "exp" ? "Uitgave" : "Winst", q(e.cat), q(e.note), e.qty, netOf(e), e.min || "", e.rev || ""].join(";"));
   saveFile("albion-logboek-" + new Date().toISOString().slice(0, 10) + ".csv", "﻿" + lines.join("\r\n"), "text/csv", $("lgIoMsg"));
 }
 async function importJson(file){
@@ -2128,7 +2176,7 @@ function renderLog(){
   for(const e of rows){
     const tr = document.createElement("tr");
     const c = (txt, cls) => { const td = document.createElement("td"); td.textContent = txt; if(cls) td.className = cls; tr.appendChild(td); return td; };
-    c(fmtDate(e.t, true)); c(e.type === "exp" ? "Uitgave" : "Winst"); c(e.cat); c(e.note || "");
+    c(fmtDate(e.t, true)); c(e.type === "exp" ? "Uitgave" : "Winst"); c(e.cat); c((e.note || "") + (e.min ? (e.note ? " · " : "") + e.min + " min" : ""));
     c(String(e.qty), "num"); c(signed(netOf(e)), "num " + (netOf(e) >= 0 ? "pos" : "neg"));
     const td = document.createElement("td");
     const del = document.createElement("button"); del.type = "button"; del.className = "del";
@@ -2164,6 +2212,7 @@ function initLog(){
   $("lgTypeExp").addEventListener("click", () => setLogType("exp"));
   $("lgAmount").addEventListener("input", updatePreview);
   $("lgQty").addEventListener("input", updatePreview);
+  $("lgRev").addEventListener("input", () => { L.revUnit = null; });
   $("lgAmount").addEventListener("keydown", e => { if(e.key === "Enter") addFromForm(); });
   $("lgAdd").addEventListener("click", addFromForm);
   $("lgDate").value = localInputValue(Date.now());
@@ -2197,6 +2246,7 @@ function initSite(){
   initOrders();
   initFavs();
   initTravel();
+  initInsight();
   showView(viewFromHash());
 }
 
@@ -2492,6 +2542,7 @@ function finishBatch(){
   $("lgCat").value = cat;
   $("lgNote").value = ("Batch: " + t.n + " stuks, " + CART.items.length + " items → " + dests).slice(0, 120);
   $("lgAmount").value = String(Math.round(t.profit));
+  L.revUnit = null; $("lgRev").value = String(Math.round(CART.items.reduce((s, x) => s + (x.sell || 0) * x.qty, 0)));
   $("lgQty").value = "1";
   $("lgDate").value = localInputValue(Date.now());
   updatePreview();
@@ -2806,12 +2857,13 @@ function saveCartAsBatch(btn){
   favSave(); updateFavUi();
   if(btn){ btn.textContent = "★ Bewaard in Favorieten"; btn.disabled = true; }
 }
-function favSave(){ try{ localStorage.setItem(FAV_KEY, JSON.stringify({list:FAV.list, batches:FAV.batches, checked:FAV.checked})); }catch(e){} }
+function favSave(){ try{ localStorage.setItem(FAV_KEY, JSON.stringify({list:FAV.list, batches:FAV.batches, checked:FAV.checked, alarm:FAV.alarm || null})); }catch(e){} }
 function favLoad(){
   try{
     const j = JSON.parse(localStorage.getItem(FAV_KEY) || "null");
     if(j && Array.isArray(j.list)) FAV.list = j.list.filter(f => f && f.key && f.itemId && f.mode);
     if(j && Number.isFinite(j.checked)) FAV.checked = j.checked;
+    if(j && j.alarm && typeof j.alarm === "object") FAV.alarm = {on:!!j.alarm.on, every:[5, 10, 15, 30].includes(j.alarm.every) ? j.alarm.every : 10};
     if(j && Array.isArray(j.batches)) FAV.batches = j.batches.filter(b => b && b.id && Array.isArray(b.items) && b.items.length);
   }catch(e){}
 }
@@ -2862,7 +2914,7 @@ function evalFav(f){
   return row ? {row, snap} : null;
 }
 async function checkFavs(){
-  const msg = $("favMsg");
+  const msg = $("favMsg") || {textContent:""};
   const specs = allSpecs();
   if(!specs.length){ msg.textContent = "Nog geen favorieten."; return; }
   if(scanning){ msg.textContent = "Er loopt al een scan; wacht tot die klaar is."; return; }
@@ -2905,6 +2957,7 @@ async function checkFavs(){
   FAV.checked = Date.now(); favSave();
   FAV.msg = fatal ? CORS_HINT : failed ? failed + " verzoeken mislukt; probeer het nog eens." : "Gecheckt met de prijzen van nu.";
   renderFavs();
+  alarmEval();
 }
 function renderFavs(){
   const root = $("favRoot"); root.textContent = "";
@@ -2917,6 +2970,7 @@ function renderFavs(){
   chk.addEventListener("click", checkFavs);
   const m = el("span", "est", lastMsg || (FAV.checked ? "Laatst gecheckt " + fmtAge(FAV.checked) + " geleden." : "Nog niet gecheckt.")); m.id = "favMsg";
   bar.append(chk, m); root.appendChild(bar);
+  renderAlarmBox(root);
   if(FAV.batches.length) renderBatches(root);
   if(!FAV.list.length) return;
   root.appendChild(el("h3", "ord-h", "Losse routes"));
@@ -2960,6 +3014,7 @@ function renderFavs(){
       ta.appendChild(cb);
     }
     ta.appendChild(copyBtn(f.name));
+    ta.appendChild(alarmInput(f, "Prijsalarm: melding als de winst per stuk minstens zoveel is"));
     const del = el("button", "del", "Verwijder"); del.type = "button"; del.style.marginLeft = "4px";
     del.addEventListener("click", () => {
       if(del.dataset.armed){ FAV.list = FAV.list.filter(x => x.key !== f.key); favSave(); updateFavUi(); return; }
@@ -3013,12 +3068,13 @@ function renderBatches(root){
       if(!del.dataset.armed){ del.dataset.armed = "1"; del.textContent = "Zeker? Klik nog eens"; return; }
       FAV.batches = FAV.batches.filter(x => x.id !== b.id); favSave(); updateFavUi();
     });
-    btns.append(load, del);
+    const al = alarmInput(b, "Prijsalarm: melding als de batch minstens zoveel winst oplevert");
+    btns.append(load, del, el("span", "est", "Alarm bij totale winst ≥"), al);
     card.appendChild(btns);
     root.appendChild(card);
   }
 }
-function initFavs(){ favLoad(); updateFavUi(); }
+function initFavs(){ favLoad(); updateFavUi(); alarmSchedule(); }
 
 
 /* =================================================================
@@ -3201,6 +3257,221 @@ function initTravel(){
     });
   }
 }
+
+
+/* =================================================================
+   Prijsalarm (favorieten en batches)
+   ================================================================= */
+const ALARM = {timer:null, last:{}};
+function alarmSettings(){ return FAV.alarm || (FAV.alarm = {on:false, every:10}); }
+function toast(title, body){
+  const box = $("toasts");
+  const t = el("div", "toast");
+  t.appendChild(el("b", null, title));
+  t.appendChild(el("div", null, body));
+  const x = el("button", "toast-x", "×"); x.type = "button"; x.setAttribute("aria-label", "Sluiten");
+  x.addEventListener("click", () => t.remove());
+  t.appendChild(x);
+  box.appendChild(t);
+  setTimeout(() => t.remove(), 20000);
+}
+function notify(title, body){
+  toast(title, body);
+  try{
+    if("Notification" in window && Notification.permission === "granted") new Notification(title, {body, tag:"albion-" + title});
+  }catch(e){}
+}
+function alarmEval(){
+  const a = alarmSettings();
+  if(!a.on) return 0;
+  let hits = 0;
+  const now = Date.now();
+  const fire = (key, title, body) => {
+    if(ALARM.last[key] && now - ALARM.last[key] < 30 * 60000) return;   // hoogstens één melding per half uur per route
+    ALARM.last[key] = now; hits++; notify(title, body);
+  };
+  for(const f of FAV.list){
+    if(!(f.alarm > 0)) continue;
+    const ev = evalFav(f);
+    if(ev && ev.row.profit >= f.alarm)
+      fire("r|" + f.key, "Prijsalarm: " + f.name, "Winst nu +" + fmt(ev.row.profit) + " per stuk (" + (f.mode === "craft" ? "craften → " : f.from + " → ") + (f.to === BM ? "Black Market" : f.to) + "), je alarm staat op " + fmt(f.alarm) + ".");
+  }
+  for(const b of FAV.batches){
+    if(!(b.alarm > 0)) continue;
+    const evs = b.items.map(it => ({it, ev:evalFav(it)}));
+    if(evs.some(x => !x.ev)) continue;
+    const profit = evs.reduce((s, x) => s + x.ev.row.profit * x.it.qty, 0);
+    if(profit >= b.alarm) fire("b|" + b.id, "Prijsalarm: " + b.name, "Batch levert nu +" + fmt(profit) + " op, je alarm staat op " + fmt(b.alarm) + ".");
+  }
+  return hits;
+}
+function alarmSchedule(){
+  clearInterval(ALARM.timer);
+  const a = alarmSettings();
+  if(!a.on) return;
+  ALARM.timer = setInterval(() => { if(!scanning && allSpecs().length) checkFavs(true); }, Math.max(5, a.every) * 60000);
+}
+function alarmInput(obj, title){
+  const inp = el("input"); inp.type = "text"; inp.inputMode = "decimal"; inp.className = "alarm-in";
+  inp.placeholder = "alarm ≥"; inp.title = title;
+  inp.value = obj.alarm > 0 ? fmt(obj.alarm) : "";
+  inp.addEventListener("change", () => {
+    const v = parseSilver(inp.value);
+    obj.alarm = v > 0 ? v : 0; inp.value = obj.alarm ? fmt(obj.alarm) : "";
+    favSave();
+  });
+  return inp;
+}
+function renderAlarmBox(root){
+  const a = alarmSettings();
+  const box = el("div", "card alarm-box");
+  const row = el("div", "alarm-row");
+  const lab = el("label", "check");
+  const cb = el("input"); cb.type = "checkbox"; cb.id = "alOn"; cb.checked = a.on;
+  lab.append(cb, el("span", null, "Prijsalarm aan: check mijn favorieten automatisch elke"));
+  const sel = el("select"); sel.id = "alEvery";
+  for(const m of [5, 10, 15, 30]){ const o = el("option", null, m + " min"); o.value = String(m); sel.appendChild(o); }
+  sel.value = String(a.every);
+  const perm = el("button", "btn", "Meldingen toestaan"); perm.type = "button";
+  const permState = () => {
+    const ok = "Notification" in window;
+    perm.disabled = !ok || Notification.permission === "granted";
+    perm.textContent = !ok ? "Meldingen niet beschikbaar" : Notification.permission === "granted" ? "Meldingen staan aan" : "Meldingen toestaan";
+  };
+  permState();
+  perm.addEventListener("click", async () => { try{ await Notification.requestPermission(); }catch(e){} permState(); });
+  row.append(lab, sel, perm);
+  box.appendChild(row);
+  box.appendChild(el("p", "est", "Vul hieronder bij een route (winst per stuk) of batch (totale winst) een grens in. Zolang deze pagina open staat, check ik je favorieten op de gekozen tijd en geef ik een melding zodra de winst erboven komt. Met het hulpprogramma aan reageert het ook meteen op je eigen live data. Hoogstens één melding per half uur per route."));
+  cb.addEventListener("change", () => { a.on = cb.checked; favSave(); alarmSchedule(); if(a.on) alarmEval(); });
+  sel.addEventListener("change", () => { a.every = +sel.value; favSave(); alarmSchedule(); });
+  root.appendChild(box);
+}
+
+/* =================================================================
+   Inzicht: goudprijs, premium-check en winst per uur
+   ================================================================= */
+const GOLD = {pts:[], fetched:0, err:null, busy:false};
+const INS_KEY = "albionInzicht.v1";
+const INS = {premGold:3750, premSilver:35000000, revMonth:0};
+function insSave(){ try{ localStorage.setItem(INS_KEY, JSON.stringify(INS)); }catch(e){} }
+function insLoad(){
+  try{
+    const j = JSON.parse(localStorage.getItem(INS_KEY) || "null");
+    if(!j) return;
+    for(const k of ["premGold", "premSilver", "revMonth"]) if(Number.isFinite(j[k]) && j[k] >= 0) INS[k] = j[k];
+  }catch(e){}
+}
+async function fetchGold(force){
+  if(GOLD.busy || (!force && GOLD.pts.length && Date.now() - GOLD.fetched < 10 * 60000)) return;
+  GOLD.busy = true; GOLD.err = null;
+  try{
+    const res = await fetch(API[S.server] + "/api/v2/stats/gold.json?count=720", {cache:"no-store"});
+    if(!res.ok) throw new Error("HTTP " + res.status);
+    const data = await res.json();
+    GOLD.pts = (Array.isArray(data) ? data : []).map(d => ({t:parseDate(d.timestamp), v:Number(d.price)}))
+      .filter(p => p.t && p.v > 0).sort((a, b) => a.t - b.t);
+    GOLD.fetched = Date.now();
+  }catch(e){ GOLD.err = e instanceof TypeError ? CORS_HINT : String(e.message || e); }
+  GOLD.busy = false;
+  if(currentView === "inzicht") renderInsight();
+}
+function goldNow(){ return GOLD.pts.length ? GOLD.pts[GOLD.pts.length - 1].v : null; }
+function renderInsight(){
+  const root = $("insRoot"); root.textContent = "";
+  const head = el("div", "cart-head"); head.appendChild(el("h2", null, "Inzicht")); root.appendChild(head);
+
+  // ---- goud ----
+  const g = el("div", "card");
+  g.appendChild(el("h3", null, "Goudprijs"));
+  g.appendChild(el("p", "sub2", "Prijs van 1 goud in silver op de " + (S.server === "europe" ? "Europa" : S.server === "west" ? "Amerika" : "Azië") + "-server, laatste 30 dagen (Albion Data Project)."));
+  if(GOLD.err) g.appendChild(el("p", "syncnote err", "Goudprijs ophalen mislukt: " + GOLD.err));
+  if(GOLD.pts.length){
+    const now = goldNow(), d7 = GOLD.pts.filter(p => p.t >= Date.now() - 7 * 86400e3);
+    const avg7 = d7.reduce((s, p) => s + p.v, 0) / (d7.length || 1);
+    const vals = GOLD.pts.map(p => p.v), lo = Math.min(...vals), hi = Math.max(...vals);
+    const cheaper = vals.filter(v => v > now).length / vals.length * 100;
+    const tiles = el("div", "tiles");
+    tile(tiles, "Nu", fmt(now), "per goud");
+    tile(tiles, "Gemiddeld 7 dagen", fmt(avg7), (now < avg7 ? "nu " : "nu +") + ((now / avg7 - 1) * 100).toFixed(1).replace(".", ",") + "%");
+    tile(tiles, "Laagste / hoogste 30 dagen", fmt(lo) + " / " + fmt(hi), "");
+    tile(tiles, "Hoe goedkoop is het nu?", Math.round(cheaper) + "%", "van de afgelopen 30 dagen was goud duurder dan nu");
+    g.appendChild(tiles);
+    const ch = el("div", "chart"); g.appendChild(ch);
+    root.appendChild(g);
+    drawLine(ch, GOLD.pts.map(p => ({t:p.t, v:p.v, label:"1 goud"})));
+  }else{
+    g.appendChild(el("p", "est", GOLD.busy ? "Goudprijs ophalen…" : "Nog geen goudprijs."));
+    root.appendChild(g);
+  }
+  const gb = el("div", "btns");
+  const gr = el("button", "btn", "Goudprijs verversen"); gr.type = "button"; gr.addEventListener("click", () => fetchGold(true));
+  gb.appendChild(gr); g.appendChild(gb);
+
+  // ---- premium ----
+  const p = el("div", "card");
+  p.appendChild(el("h3", null, "Is premium het waard?"));
+  p.appendChild(el("p", "sub2", "Zonder premium betaal je 8% verkoopbelasting, met premium 4%. Hier reken ik alleen die besparing; focus en de andere voordelen van premium tellen niet mee."));
+  const cut = Date.now() - 30 * 86400e3;
+  const withRev = L.entries.filter(e => e.t >= cut && e.rev > 0);
+  const logRev = withRev.reduce((s, e) => s + e.rev, 0);
+  const form = el("div", "planner-form");
+  const fld = (label, value, on) => {
+    const l = el("label", "field"); l.appendChild(el("span", null, label));
+    const i = el("input"); i.type = "text"; i.inputMode = "decimal"; i.value = value ? fmt(value) : "";
+    i.addEventListener("change", () => { const v = parseSilver(i.value); on(v > 0 ? v : 0); insSave(); renderInsight(); });
+    l.appendChild(i); form.appendChild(l); return i;
+  };
+  fld("Premium kost (goud per 30 dagen)", INS.premGold, v => { INS.premGold = v; });
+  if(!goldNow()) fld("Premium kost (silver), zonder goudprijs", INS.premSilver, v => { INS.premSilver = v; });
+  fld("Verwachte verkoopomzet per maand (leeg = uit logboek)", INS.revMonth, v => { INS.revMonth = v; });
+  p.appendChild(form);
+  const cost = goldNow() && INS.premGold ? goldNow() * INS.premGold : INS.premSilver;
+  const rev = INS.revMonth || logRev;
+  const save = rev * (TAX_FREE - TAX_PREMIUM);
+  const tiles = el("div", "tiles");
+  tile(tiles, "Verkoopomzet per maand", rev ? fmtS(rev) : "–", INS.revMonth ? "zelf ingevuld" : withRev.length + (withRev.length === 1 ? " logregel" : " logregels") + " met omzet (30 dagen)");
+  tile(tiles, "Besparing op belasting", rev ? "+" + fmtS(save) : "–", "4% van je omzet");
+  tile(tiles, "Premium kost", fmtS(cost), goldNow() && INS.premGold ? fmt(INS.premGold) + " goud × " + fmt(goldNow()) : "zelf ingevuld");
+  tile(tiles, "Break-even", fmtS(cost / (TAX_FREE - TAX_PREMIUM)), "zoveel omzet per maand heb je nodig");
+  p.appendChild(tiles);
+  p.appendChild(el("p", "plan-sum", !rev ? "Vul je verwachte omzet in, of log verkopen met omzet (de Log-knop en ‘Batch afronden’ vullen die al in)."
+    : save >= cost ? "Ja, met deze omzet verdien je premium terug: ±" + fmtS(save - cost) + " per maand over."
+    : "Nog niet: je mist ±" + fmtS(cost - save) + " per maand. Dat is " + Math.round(save / cost * 100) + "% van de kosten."));
+  root.appendChild(p);
+
+  // ---- winst per uur ----
+  const h = el("div", "card");
+  h.appendChild(el("h3", null, "Winst per uur"));
+  const timed = L.entries.filter(e => e.min > 0);
+  h.appendChild(el("p", "sub2", "Uit logregels waarbij je “Tijd bezig” hebt ingevuld (" + timed.length + " regels). Uitgaven met een tijd tellen mee bij hun actie."));
+  if(!timed.length){
+    h.appendChild(el("p", "est", "Nog geen regels met tijd. Vul in het logboek bij een nieuwe regel “Tijd bezig (min)” in."));
+  }else{
+    const per = new Map();
+    for(const e of timed){ const k = e.cat; const o = per.get(k) || {cat:k, net:0, min:0, n:0}; o.net += netOf(e); o.min += e.min; o.n++; per.set(k, o); }
+    const rows = [...per.values()].map(o => ({...o, ph:o.net / (o.min / 60)})).sort((a, b) => b.ph - a.ph);
+    const tot = rows.reduce((s, o) => ({net:s.net + o.net, min:s.min + o.min}), {net:0, min:0});
+    const t = el("table", "plan-table"), hr = el("tr");
+    for(const [l, n] of [["Actie"], ["Regels", 1], ["Tijd", 1], ["Netto", 1], ["Per uur", 1]]) hr.appendChild(el("th", n ? "num" : null, l));
+    const thd = el("thead"); thd.appendChild(hr); t.appendChild(thd);
+    const tb = el("tbody");
+    const hrs = m => (m / 60).toLocaleString("nl-NL", {maximumFractionDigits:1}) + " u";
+    for(const o of rows){
+      const tr = el("tr");
+      tr.append(el("td", null, o.cat), el("td", "num", String(o.n)), el("td", "num", hrs(o.min)),
+        el("td", "num " + (o.net >= 0 ? "pos" : "neg"), signed(o.net)), el("td", "num " + (o.ph >= 0 ? "pos" : "neg"), signed(o.ph)));
+      tb.appendChild(tr);
+    }
+    const tr = el("tr", "tot");
+    tr.append(el("td", null, "Totaal"), el("td", "num", String(timed.length)), el("td", "num", hrs(tot.min)), el("td", "num", signed(tot.net)), el("td", "num", signed(tot.net / (tot.min / 60))));
+    tb.appendChild(tr);
+    t.appendChild(tb);
+    const w = el("div", "plan-wrap"); w.appendChild(t); h.appendChild(w);
+  }
+  root.appendChild(h);
+}
+function initInsight(){ insLoad(); }
 
 init();
 initSite();

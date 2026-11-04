@@ -12,6 +12,9 @@ UI-tekst is Nederlands. Joris wil korte, scanbare uitleg.
 - Reisroute (tab `reis`): zonegraaf in `tools/world.json`, gemaakt met `python3 -I tools/build_world.py <cluster/world.xml uit ao-bin-dumps> tools/world.json`; ingebakken via `__WORLD__`. Richting = hoek tussen `worldmapposition` van twee zones (y omhoog = noord). Opslag `albionReis.v1`. Roads of Avalon (TUNNEL_*) zitten er niet in.
 - Favorieten (`albionFavorieten.v1`, `{list,batches,checked}`; batches = `{id,name,items:[spec+qty],saved,lastProfit}`, gemaakt uit het mandje; mandje-items dragen `spec` met de instellingen): elke favoriet bewaart modus, route en instellingen van toen; `evalFav` rekent hem door via `withSettings` + computeFlips/computeCrafts.
 - Craftbonussen per stad: `tools/craftingbonus.json` (uit ao-bin-dumps `craftingmodifiers.json`, clusters 0000 Thetford, 1000 Lymhurst, 2000 Bridgewatch, 3004 Martlock, 4000 Fort Sterling, 3003 Caerleon, 5000 Brecilien). RRR = 1 − 1/(1 + basis 0,18 + bonus itemsoort + focus 0,59). Items krijgen `cc` (craftingcategory).
+- Inzicht (tab `inzicht`, `albionInzicht.v1`): goudprijs (`/api/v2/stats/gold.json?count=720`), premium-check (omzet uit logregels met `rev`), winst per uur (logregels met `min`). Logregels hebben optioneel `min` en `rev` (compatibel met het oude formaat).
+- Prijsalarm: `FAV.alarm = {on, every}` + `alarm` per favoriet (winst per stuk) of batch (totaal); `alarmEval()` na Check alle en na eigen data; melding via Notification + toast.
+- Uitschieters: rij krijgt `outlier` als de verkoopprijs > 7d-gem. × (1 + `S.outPct`); `S.hideOut` verbergt ze.
 - Nieuwe tool = nieuwe tab: een `<main id="view…">`, een knop in `.tabs` (data-view) en een sleutel in `VIEWS`.
 
 ## Eigen data (privé)

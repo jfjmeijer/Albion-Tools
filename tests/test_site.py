@@ -562,6 +562,57 @@ with sync_playwright() as p:
     check("5× T5 Expert's Broadsword" in p6.inner_text("#cartRoot"), "afvinklijst van de batch")
     check(not err6, "geen JS-fouten bij batches: %s" % err6)
 
+    # ---------- uitschieters, alarm, logboek-tijd, inzicht ----------
+    def gold(route):
+        now = datetime.datetime.now(datetime.timezone.utc)
+        pts = [{"price": 9000 + (k % 24) * 10, "timestamp": (now - datetime.timedelta(hours=k)).strftime("%Y-%m-%dT%H:%M:%S")} for k in range(720)]
+        route.fulfill(status=200, body=json.dumps(pts), headers={"access-control-allow-origin": "*", "content-type": "application/json"})
+    HIST_PRICE[("T5_MAIN_SWORD", "Martlock")] = 60000
+    ctx7 = browser.new_context(locale="nl-NL", viewport={"width": 1400, "height": 950})
+    p7 = ctx7.new_page()
+    err7 = []
+    p7.on("pageerror", lambda e: err7.append(str(e)))
+    p7.route(re.compile(r"albion-online-data\.com/api/v2/stats/prices/"), prices)
+    p7.route(re.compile(r"albion-online-data\.com/api/v2/stats/history/"), history)
+    p7.route(re.compile(r"albion-online-data\.com/api/v2/stats/gold"), gold)
+    p7.goto("file://" + TEST_COPY)
+    p7.evaluate("(() => { const c = document.getElementById('premium'); if(!c.checked){ c.click(); } })()")
+    p7.click("#modeCity")
+    p7.click("#scanBtn"); p7.wait_for_function(DONE, timeout=90000)
+    p7.fill("#q", "expert's broadsword")
+    sw = [r for r in rows(p7) if r[0].startswith("T5E")]
+    print("uitschieter:", sw[:1])
+    check(sw and "⚠ +100% boven gem." in sw[0][3], "uitschieter gemarkeerd: 120.000 tegen gem. 60.000")
+    p7.check("#hideOut")
+    check(not [r for r in rows(p7) if r[0].startswith("T5E")], "verberg uitschieters")
+    p7.uncheck("#hideOut")
+    HIST_PRICE.pop(("T5_MAIN_SWORD", "Martlock"), None)
+
+    # prijsalarm
+    T5ROW(p7).locator(".favbtn").click()
+    p7.click("#tabFavs")
+    p7.fill("#favRoot .alarm-in", "10k"); p7.press("#favRoot .alarm-in", "Tab")
+    p7.check("#alOn")
+    p7.wait_for_selector("#toasts .toast", timeout=5000)
+    check("Prijsalarm" in p7.inner_text("#toasts"), "alarm geeft een melding als de winst boven de grens komt")
+    p7.click("#toasts .toast-x")
+    p7.reload(); p7.wait_for_timeout(300)
+    check(p7.is_checked("#alOn") and p7.input_value("#favRoot .alarm-in") == "10.000", "alarm en grens bewaard")
+
+    # logboek met tijd en omzet
+    p7.click("#tabLogboek")
+    p7.fill("#lgAmount", "60k"); p7.fill("#lgMin", "30"); p7.fill("#lgRev", "2m"); p7.click("#lgAdd")
+    check("30 min" in p7.inner_text("#lgBody"), "tijd zichtbaar in het logboek")
+    p7.click("#tabIns")
+    p7.wait_for_function("document.getElementById('insRoot').textContent.includes('Hoe goedkoop')", timeout=10000)
+    ins = p7.inner_text("#insRoot")
+    print("inzicht:", ins.replace("\n", " | ")[:700])
+    check("Goudprijs" in ins and "9.000" in ins, "goudprijs met grafiek")
+    check("+120.000" in ins, "winst per uur: 60k in 30 min = +120.000 per uur")
+    check("2m" in ins and "Nog niet" in ins, "premium-check met omzet uit logboek (2m → niet de moeite)")
+    p7.screenshot(path=SHOT_DIR + "/inzicht.png", full_page=True)
+    check(not err7, "geen JS-fouten bij uitschieters/alarm/inzicht: %s" % err7)
+
     browser.close()
 
 print("\nFAILURES:", len(failures))
