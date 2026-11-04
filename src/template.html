@@ -149,6 +149,11 @@ td.neg{color:var(--bad);font-weight:600}
 .ordbtn.on{background:var(--good);color:#06240f;font-weight:700}
 .cart{display:flex;flex-direction:column;gap:14px}
 .cart-head h2{margin:0;font-size:18px}
+.manual{margin-bottom:14px;border-top:1px solid var(--line)}
+.manual summary{color:var(--text);padding:2px 0}
+.manual-form{display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:0 10px;margin-top:10px}
+.manual-form .m-item{grid-column:span 2}
+@media (max-width:600px){.manual-form .m-item{grid-column:auto}}
 .cart-table{min-width:760px}
 .cart-table input.qty{width:76px;text-align:right;padding:5px 7px}
 .vwarn{display:block;font-size:11px;color:var(--warn)}
@@ -434,7 +439,27 @@ td.pos{color:var(--good);font-weight:600} td.neg{color:var(--bad);font-weight:60
 
 <main id="viewOrders" class="hidden"><section class="cart" id="ordRoot" aria-label="Orders"></section></main>
 
-<main id="viewCart" class="hidden"><section class="cart" id="cartRoot" aria-label="Mandje"></section></main>
+<main id="viewCart" class="hidden">
+<details class="card manual" id="manualBox">
+  <summary><b>＋ Item handmatig toevoegen</b> <span class="est">zonder eerst te scannen</span></summary>
+  <div class="manual-form">
+    <label class="field m-item"><span>Item</span><input type="text" id="mItem" list="itemList" autocomplete="off" placeholder="bijv. T4 Adept's Glacial Staff"></label>
+    <label class="field"><span>Enchant</span><select id="mEnch"></select></label>
+    <label class="field"><span>Kwaliteit</span><select id="mQual"><option value="1">Normal</option><option value="2">Good</option><option value="3">Outstanding</option><option value="4">Excellent</option><option value="5">Masterpiece</option></select></label>
+    <label class="field"><span>Wat ga je doen?</span><select id="mKind"><option value="flip">Kopen en verkopen (flip)</option><option value="craft">Craften en verkopen</option></select></label>
+    <label class="field" id="mFromWrap"><span>Kopen in</span><select id="mFrom"></select></label>
+    <label class="field"><span>Verkopen in</span><select id="mTo"></select></label>
+    <label class="field"><span>Aantal</span><input type="number" id="mQty" min="1" step="1" value="1"></label>
+  </div>
+  <p class="est">Rekent met je instellingen in Markt: koop- en verkoopmethode, sell order op de BM, bij craften de RRR, craftstad en waar je materialen koopt.</p>
+  <div class="btns">
+    <button type="button" class="btn primary" id="mAdd">In mandje</button>
+    <button type="button" class="btn" id="mFav">☆ Als favoriet bewaren</button>
+    <span class="est" id="mMsg"></span>
+  </div>
+  <datalist id="itemList"></datalist>
+</details>
+<section class="cart" id="cartRoot" aria-label="Mandje"></section></main>
 
 <main id="viewTravel" class="hidden"><section class="cart" aria-label="Reisroute">
   <div class="cart-head"><h2>Reisroute</h2></div>
@@ -2282,6 +2307,7 @@ function initSite(){
   initFavs();
   initTravel();
   initInsight();
+  initManual();
   showView(viewFromHash());
 }
 
@@ -2583,6 +2609,82 @@ function finishBatch(){
   updatePreview();
   lgStatus("Ingevuld met de verwachte winst van je batch. Pas het bedrag aan naar wat je echt verdiende en klik Toevoegen. Je mandje blijft staan tot je het leegmaakt.");
   $("lgAmount").focus();
+}
+/* ---------- handmatig een item toevoegen ---------- */
+const ITEMLABELS = new Map();   // label -> {it, tier}
+function buildItemList(){
+  const dl = $("itemList"), seen = new Map();
+  for(const it of BASES){
+    for(let ti = 0; ti < 7; ti++){
+      if(!it.m[ti]) continue;
+      const tier = ti + 2;
+      let label = "T" + tier + " " + nameOf(it, tier);
+      if(seen.has(label)) label += " (" + it.b + ")";
+      seen.set(label, 1);
+      ITEMLABELS.set(label.toLowerCase(), {it, tier, label});
+    }
+  }
+  const frag = document.createDocumentFragment();
+  for(const {label} of ITEMLABELS.values()){ const o = document.createElement("option"); o.value = label; frag.appendChild(o); }
+  dl.appendChild(frag);
+}
+function manualPick(){ return ITEMLABELS.get($("mItem").value.trim().toLowerCase()) || null; }
+function manualSync(){
+  const pick = manualPick(), sel = $("mEnch"), cur = sel.value;
+  sel.textContent = "";
+  const mask = pick ? pick.it.m[pick.tier - 2] : 1;
+  for(let e = 0; e < 5; e++) if((mask >> e) & 1){ const o = el("option", null, "." + e); o.value = String(e); sel.appendChild(o); }
+  if([...sel.options].some(o => o.value === cur)) sel.value = cur;
+  const craft = $("mKind").value === "craft";
+  $("mFromWrap").classList.toggle("hidden", craft);
+  $("mQual").disabled = craft; if(craft) $("mQual").value = "1";
+  const res = pick && (pick.it.c === "r" || pick.it.c === "m");
+  for(const o of $("mTo").options) if(o.value === BM) o.disabled = !!res;
+  if(res && $("mTo").value === BM) $("mTo").value = CITIES[0];
+}
+function manualSpec(){
+  const pick = manualPick();
+  if(!pick) return {err:"Kies een item uit de lijst (begin te typen, bijvoorbeeld “Glacial”)."};
+  const e = +$("mEnch").value || 0, craft = $("mKind").value === "craft";
+  const id = productId(pick.it, pick.tier, e), q = craft ? 1 : +$("mQual").value || 1;
+  const to = $("mTo").value, from = craft ? "Craft" : $("mFrom").value;
+  if(craft && !recipeFor(pick.it, pick.tier, e)) return {err:"Voor dit item heb ik geen recept."};
+  if(!craft && from === to) return {err:"Kies een andere stad om in te verkopen dan om in te kopen."};
+  const mode = craft ? "craft" : to === BM ? "bm" : "city";
+  return {spec:{key:[mode, id, q, from, to].join("|"), mode, itemId:id, quality:q, name:nameOf(pick.it, pick.tier), tier:pick.tier, ench:e, from, to, ...currentSpec()}};
+}
+async function manualAdd(asFav){
+  const msg = $("mMsg");
+  const {spec, err} = manualSpec();
+  if(err){ msg.textContent = err; msg.className = "est err"; return; }
+  if(scanning){ msg.textContent = "Er loopt al een scan; wacht tot die klaar is."; return; }
+  msg.className = "est";
+  const {fatal} = await fetchForSpecs([spec], t => { msg.textContent = t; });
+  if(fatal){ msg.textContent = CORS_HINT; msg.className = "est err"; return; }
+  const ev = evalFav(spec);
+  if(!ev){ msg.textContent = "Geen verse prijs gevonden voor deze route (ouder dan " + S.maxAge + " uur of nergens te koop). Kies een andere stad of zet in Markt de maximale leeftijd hoger."; msg.className = "est err"; return; }
+  const qty = Math.max(1, Math.round(+$("mQty").value || 1));
+  const r = ev.row, label = "T" + spec.tier + (spec.ench ? "." + spec.ench : "") + " " + spec.name;
+  if(asFav){
+    if(!FAV.list.some(f => f.key === spec.key)){ FAV.list.push({...spec, saved:Date.now(), lastProfit:r.profit}); favSave(); updateFavUi(); }
+    msg.textContent = label + " bewaard in Favorieten (winst nu " + signed(r.profit) + " per stuk).";
+  }else{
+    const key = "manual|" + spec.key, ex = CART.items.find(x => x.key === key);
+    if(ex) ex.qty += qty; else CART.items.push({...ev.snap, key, qty});
+    CART.stage = "select"; cartSave(); updateCartUi();
+    msg.textContent = qty + "× " + label + " toegevoegd (winst nu " + signed(r.profit) + " per stuk" + (r.vEff != null ? ", " + fmtVol(r.vEff) + " verkocht per dag" : "") + ").";
+  }
+  msg.className = "est ok";
+}
+function initManual(){
+  buildItemList();
+  const fill = (sel, opts) => { for(const c of opts){ const o = el("option", null, c === BM ? "Black Market" : c); o.value = c; sel.appendChild(o); } };
+  fill($("mFrom"), CITIES); fill($("mTo"), [BM, ...CITIES]);
+  for(const id of ["mItem", "mKind", "mTo"]) $(id).addEventListener("change", manualSync);
+  $("mItem").addEventListener("input", () => { if(manualPick()) manualSync(); });
+  $("mAdd").addEventListener("click", () => manualAdd(false));
+  $("mFav").addEventListener("click", () => manualAdd(true));
+  manualSync();
 }
 function initCart(){
   cartLoad();
@@ -2953,6 +3055,14 @@ async function checkFavs(){
   const specs = allSpecs();
   if(!specs.length){ msg.textContent = "Nog geen favorieten."; return; }
   if(scanning){ msg.textContent = "Er loopt al een scan; wacht tot die klaar is."; return; }
+  const {failed, fatal} = await fetchForSpecs(specs, t => { msg.textContent = t; });
+  FAV.checked = Date.now(); favSave();
+  FAV.msg = fatal ? CORS_HINT : failed ? failed + " verzoeken mislukt; probeer het nog eens." : "Gecheckt met de prijzen van nu.";
+  renderFavs();
+  alarmEval();
+}
+// haalt alleen de prijzen, materialen en het volume op die deze routes nodig hebben
+async function fetchForSpecs(specs, say){
   const flips = specs.filter(f => f.mode !== "craft"), crafts = specs.filter(f => f.mode === "craft");
   const jobs = [];
   if(flips.length) jobs.push({ids:[...new Set(flips.map(f => f.itemId))], locs:[...new Set(flips.flatMap(f => [f.from, f.to]))],
@@ -2969,7 +3079,7 @@ async function checkFavs(){
   let failed = 0, fatal = false, done = 0;
   try{
     for(const u of urls){
-      msg.textContent = "Prijzen ophalen… " + (++done) + " van " + urls.length;
+      say("Prijzen ophalen… " + (++done) + " van " + urls.length);
       try{ ingest(await fetchJson(u, ctrl.signal)); }
       catch(e){ if(e.name === "AbortError") break; if(e instanceof TypeError){ fatal = true; break; } failed++; }
     }
@@ -2979,7 +3089,7 @@ async function checkFavs(){
       const locs = [...new Set(specs.flatMap(f => f.mode === "craft" ? [f.to] : [f.from, f.to]))];
       const qs = [...new Set(specs.map(f => f.quality))].sort();
       for(const ch of histChunks(ids, locs, qs)){
-        msg.textContent = "Volume ophalen…";
+        say("Volume ophalen…");
         try{
           const data = await fetchJson(ch.url, ctrl.signal);
           ingestHistory(data);
@@ -2990,10 +3100,7 @@ async function checkFavs(){
     }
     if(S.local){ await mergeLocal(0); await mergeLocalHistory(0); }
   }finally{ setBusy(false); }
-  FAV.checked = Date.now(); favSave();
-  FAV.msg = fatal ? CORS_HINT : failed ? failed + " verzoeken mislukt; probeer het nog eens." : "Gecheckt met de prijzen van nu.";
-  renderFavs();
-  alarmEval();
+  return {failed, fatal};
 }
 function renderFavs(){
   const root = $("favRoot"); root.textContent = "";
