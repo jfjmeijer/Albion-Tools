@@ -23,5 +23,6 @@ UI-tekst is Nederlands. Joris wil korte, scanbare uitleg.
 - Logboek staat in `localStorage` onder `albionLogboek.v1` (`{entries,start,goal}`); wijzig dat formaat nooit zonder migratie, anders is Joris zijn logboek kwijt.
 - Instellingen: `albionFlipToolSettings.v1`. Mandje + afvinklijst: `albionMandje.v1` (`{items,stage,checks}`; items zijn snapshots van scanrijen). Gevolgde orders: `albionOrders.v1` (`{list,checked}`).
 - API: `/api/v2/stats/prices/…` en `/api/v2/stats/history/…?time-scale=24`, ±1 verzoek per 1,1 s (limiet 180/min, 300/5 min), URL ≤ 3600 tekens.
+- Verkopen aan de Black Market: aparte keuze `S.bmSell` (`instant` = aan BM-buy orders, `order` = sell order op de BM tegen de laagste BM sell order of het 7d-gemiddelde). Spelers kunnen op de BM sell orders zetten; de prijsgrafiek zie je alleen in het verkoopvenster (item moet in je inventaris).
 - Belasting 8% zonder premium (Joris heeft geen premium), 4% met; setup fee 2,5% alleen bij orders.
 - Er bestaat ook een claude.ai-artifact "Albion Tools" (slug `0f4ca3c5-cb4c-4881-af74-bc86eaed87de`) met online logboek-opslag; daar werkt live scannen niet.

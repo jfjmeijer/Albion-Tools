@@ -216,7 +216,7 @@ td.pos{color:var(--good);font-weight:600} td.neg{color:var(--bad);font-weight:60
         <li>Dubbelklik <b>start-albion-prive.bat</b> vóór je gaat spelen. Dat start het hulpprogramma en de client, die nu alleen naar je eigen pc stuurt.</li>
         <li>Vink hierboven “Gebruik live data van mijn pc” aan. Geeft je browser een melding over je lokale netwerk, klik dan op Toestaan.</li>
         <li>Open in Albion de markt of Black Market; binnen ±15 seconden zie je de prijzen en aantallen hier.</li>
-        <li>Open je in-game ook de <b>prijsgrafiek</b> van een item (kies 7 dagen of 4 weken), dan krijg je het verkochte aantal per dag en de gemiddelde prijs uit je eigen data.</li>
+        <li>Voor verkocht per dag en de gemiddelde prijs: open het <b>verkoopvenster</b> van een item dat je bij je hebt (ook bij de Black Market) en kies in de grafiek 7 dagen of 4 weken. Je hoeft niets te verkopen.</li>
       </ol>
     </details>
   </div>
@@ -242,6 +242,12 @@ td.pos{color:var(--good);font-weight:600} td.neg{color:var(--bad);font-weight:60
       <select id="sellMethod">
         <option value="instant">Direct verkopen aan buy orders (alleen belasting)</option>
         <option value="order">Sell order plaatsen (2,5% fee + belasting)</option>
+      </select>
+    </label>
+    <label class="field" id="bmSellWrap"><span>Hoe verkoop je aan de Black Market?</span>
+      <select id="bmSell">
+        <option value="instant">Direct aan de buy orders van de BM (alleen belasting)</option>
+        <option value="order">Sell order op de BM plaatsen (2,5% fee + belasting)</option>
       </select>
     </label>
     <p class="est" id="modeHint"></p>
@@ -480,7 +486,7 @@ const S = {
   rrr:"best", focus:false, rrrCustom:40, stationFee:0,
   orderSell:new Set([BM, ...CITIES]),
   plBudget:1000000, plKg:0, plPct:0.5, plMax:5, plRoute:"auto",
-  q:"", showAll:false, limit:100, volAuto:true, minVol:0, volN:200, local:false, useAvg:false,
+  q:"", showAll:false, limit:100, volAuto:true, minVol:0, volN:200, local:false, useAvg:false, bmSell:"instant",
   routeSell:new Set([BM, ...CITIES])
 };
 let sort = {k:"profit", dir:-1};
@@ -514,6 +520,7 @@ function loadSettings(){
     if(typeof j.focus === "boolean") S.focus = j.focus;
     if(typeof j.local === "boolean") S.local = j.local;
     if(typeof j.useAvg === "boolean") S.useAvg = j.useAvg;
+    if(j.bmSell === "instant" || j.bmSell === "order") S.bmSell = j.bmSell;
     for(const k of ["plBudget", "plKg", "plMax"]) if(Number.isFinite(j[k]) && j[k] >= 0) S[k] = j[k];
     if([0.25, 0.5, 1].includes(j.plPct)) S.plPct = j.plPct;
     if(typeof j.plRoute === "string") S.plRoute = j.plRoute;
@@ -1091,7 +1098,7 @@ function computeFlips(){
       for(const b of sellLocs){
         if(b === BM && (p.it.c === "r" || p.it.c === "m")) continue;   // de Black Market koopt geen grondstoffen
         const B = o[b]; if(!B) continue;
-        const instantSell = b === BM || (!orders && S.sellMethod === "instant");
+        const instantSell = orders ? b === BM : b === BM ? S.bmSell !== "order" : S.sellMethod === "instant";
         const sellFee = tax + (!instantSell ? SETUP : 0);
         // buy orders: verkopen met een sell order 1 silver onder de laagste
         let sp = instantSell ? B.buy : orders ? (B.sell > 1 ? B.sell - 1 : 0) : B.sell;
@@ -1173,19 +1180,20 @@ function computeCrafts(){
     for(const target of S.craftSell){
       const B = o[target]; if(!B) continue;
       const isBm = target === BM;
-      const instant = isBm || S.sellMethod === "instant";
+      const instant = isBm ? S.bmSell !== "order" : S.sellMethod === "instant";
       let sp = instant ? B.buy : B.sell;
       const st = instant ? B.buyT : B.sellT;
       const ap = S.useAvg ? avgOf(id, quality, target) : null;
       if(ap) sp = ap;
       if(!sp || (!ap && !fresh(st))) continue;
-      const net = sp * (1 - tax - (!isBm && S.sellMethod === "order" ? SETUP : 0));
+      const net = sp * (1 - tax - (instant ? 0 : SETUP));
       const profit = net - cost, roi = profit / cost * 100;
       if(profit < S.minProfit || roi < S.minRoi) continue;
       if(S.maxRoi > 0 && roi > S.maxRoi) continue;
       found.push({id, quality, name, tier:p.tier, ench:p.e, from:"Craft", to:target, buy:cost, buyT:oldest, sell:sp, sellT:st, profit, roi,
         kg:p.it.wt ? p.it.wt[p.tier - 2] || 0 : 0, cat:p.it.c,
-        craft:{lines, matCost, fee, rrr, city:rr.city, bonus:rr.bonus}, costUnit:cost, sellAvg:!!ap});
+        craft:{lines, matCost, fee, rrr, city:rr.city, bonus:rr.bonus}, costUnit:cost, sellAvg:!!ap, sellOrder:!instant,
+        sellQty:instant && !ap ? B.buyAmt || null : null});
     }
     if(!found.length) continue;
     if(S.showAll) rows.push(...found);
@@ -1463,11 +1471,11 @@ function renderRouteChips(){
     craft ? S.craftSell : routes ? S.routeSell : orders ? S.orderSell : S.sellCities, () => changed(true));
 }
 const HINTS = {
-  bm: "Black Market: je verkoopt direct aan de NPC in Caerleon, dus alleen verkoopbelasting.",
+  bm: "Black Market (Caerleon): verkoop direct aan de buy orders van de BM (alleen belasting), of plaats een sell order naast andere spelers (2,5% fee + belasting; rekent met de laagste BM sell order, of met het 7-daagse gemiddelde als je dat aanvinkt).",
   city: "Stad → stad werkt voor gear, ruwe grondstoffen en gerefinde materialen.",
   orders: "Buy orders: je biedt 1 silver boven de hoogste buy order (2,5% fee) en verkoopt met een sell order 1 silver onder de laagste (8% + 2,5% zonder premium), of direct aan de Black Market. Kopen en verkopen in dezelfde stad mag. Je verdient pas als je order gevuld wordt: kijk naar Verk./dag. Met “+ Order” volg je een geplaatste order in de tab Orders.",
   routes: "Handelsroutes: alle koop- en verkoopplekken tegelijk (ook de Black Market), per item de route met de hoogste winst per dag (winst × kleinste dagvolume). Sorteer op Winst/dag of Winst/kg. Voor grondstoffen: zet Min. winst op 0–100.",
-  craft: "Craften: kosten = materialen (min wat je terugkrijgt) + stationkosten. Verkoop aan de Black Market is direct; in een stad kies je zelf. Alleen Normal-kwaliteit."
+  craft: "Craften: kosten = materialen (min wat je terugkrijgt) + stationkosten. Kies hieronder apart hoe je in een stad en aan de Black Market verkoopt. Alleen Normal-kwaliteit."
 };
 function applyMode(){
   const m = S.mode;
@@ -1478,6 +1486,7 @@ function applyMode(){
   $("modeOrders").setAttribute("aria-pressed", m === "orders");
   $("sellCitiesWrap").classList.toggle("hidden", m === "bm");
   $("sellMethodWrap").classList.toggle("hidden", m === "bm" || m === "orders");
+  $("bmSellWrap").classList.toggle("hidden", m === "city" || m === "orders");
   $("buyMethod").closest("label").classList.toggle("hidden", m === "orders");
   $("craftBox").classList.toggle("hidden", m !== "craft");
   $("modeHint").textContent = HINTS[m];
@@ -1528,6 +1537,8 @@ function init(){
   $("volN").addEventListener("change", e => { S.volN = +e.target.value; updateVolEst(); changed(); });
   $("server").addEventListener("change", e => { S.server = e.target.value; volStore.clear(); changed(true); });
   $("volAuto").addEventListener("change", e => { S.volAuto = e.target.checked; changed(); });
+  $("bmSell").value = S.bmSell;
+  $("bmSell").addEventListener("change", e => { S.bmSell = e.target.value; changed(); });
   $("useAvg").checked = S.useAvg;
   $("useAvg").addEventListener("change", e => { S.useAvg = e.target.checked; changed(); });
   $("volBtn").addEventListener("click", () => fetchVolumes("", ""));
@@ -2157,7 +2168,7 @@ function cartSnapshot(r){
   const craft = !!r.craft;
   const buyFee = !craft && S.buyMethod === "order" ? SETUP : 0;
   const costUnit = r.costUnit != null ? r.costUnit : craft ? r.buy : r.buy * (1 + buyFee);
-  const instantSell = r.to === BM || S.mode === "bm" || S.sellMethod === "instant";
+  const instantSell = r.to === BM ? S.bmSell !== "order" : S.sellMethod === "instant";
   return {
     key:cartKey(r), mode:S.mode, id:r.id, name:r.name, tier:r.tier, ench:r.ench, quality:r.quality, cat:r.cat || "",
     from:r.from, to:r.to, buy:r.buy, sell:r.sell, costUnit, profit:r.profit, kg:r.kg || 0,
@@ -2387,7 +2398,7 @@ function renderList(root, t){
     ss.appendChild(el("div", "cart-city", (dest === BM ? "Black Market (Caerleon)" : dest) + " · opbrengst ±" + fmtS(sum) + (kg ? " · " + fmtKg(kg) : "")));
     for(const s of list){
       const x = s.x;
-      const how = x.to === BM ? "direct aan de Black Market" : x.sellOrder ? "sell order plaatsen" : "direct aan buy orders";
+      const how = x.sellOrder ? (x.to === BM ? "sell order op de Black Market plaatsen" : "sell order plaatsen") : x.to === BM ? "direct aan de Black Market" : "direct aan buy orders";
       checkLine(ss, s.key, x.qty + "× " + itemLabel(x), how + " voor minstens " + fmt(x.sell) + " per stuk · winst ±" + fmt(x.profit * x.qty), copyBtn(x.name));
     }
   }

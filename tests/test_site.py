@@ -463,6 +463,25 @@ with sync_playwright() as p:
     check(sw and sw[0][6] == "14 / 150", "openbare history overschrijft eigen data niet (was %s)" % (sw[0][6] if sw else None))
     check(not err5, "geen JS-fouten na eigen history: %s" % err5)
 
+    # ---------- sell order op de Black Market ----------
+    p5.uncheck("#localOn"); p5.uncheck("#useAvg")
+    SPECIAL["T5_MAIN_SWORD"]["Black Market"] = dict(sell=150000, buy=130000)
+    p5.click("#modeBm")
+    check(p5.is_visible("#bmSell") and not p5.is_visible("#sellMethod"), "BM-modus: keuze voor verkopen aan de BM zichtbaar")
+    p5.click("#scanBtn"); p5.wait_for_function(DONE, timeout=90000)
+    sw = [r for r in rows(p5) if r[0].startswith("T5E")]
+    check(sw and sw[0][4] == "+24.800", "BM direct: +24.800 (was %s)" % (sw[0][4] if sw else None))
+    p5.select_option("#bmSell", "order")
+    sw = [r for r in rows(p5) if r[0].startswith("T5E")]
+    check(sw and sw[0][3].startswith("150.000") and sw[0][4] == "+40.250", "BM sell order: 150.000 × 0,935 − 100.000 = +40.250 (was %s)" % (sw[0][3:5] if sw else None))
+    p5.locator("#tbody tr").filter(has=p5.locator("span.tier", has_text=re.compile(r"^T5$"))).first.locator(".cartbtn").click()
+    p5.click("#tabMandje"); p5.click("#cartGo")
+    check("sell order op de Black Market plaatsen voor minstens 150.000" in p5.inner_text("#cartRoot"), "afvinklijst: sell order op de BM")
+    p5.click("#tabMarkt"); p5.click("#modeCraft")
+    check(p5.is_visible("#bmSell") and p5.is_visible("#sellMethod"), "craftmodus: aparte keuzes voor stad en BM")
+    p5.select_option("#bmSell", "instant")
+    check(not err5, "geen JS-fouten bij BM sell order: %s" % err5)
+
     browser.close()
 
 print("\nFAILURES:", len(failures))
