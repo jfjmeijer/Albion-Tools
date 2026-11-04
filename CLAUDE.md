@@ -17,6 +17,7 @@ UI-tekst is Nederlands. Joris wil korte, scanbare uitleg.
 - Bouwen: `cd helper && GOOS=windows GOARCH=amd64 CGO_ENABLED=0 go build -trimpath -ldflags "-s -w" -o albion-helper.exe .` en daarna `albion-tools-helper.zip` opnieuw maken (exe + `start-albion-prive.bat` + `LEESMIJ.txt`). De losse exe staat in .gitignore; de zip wordt gecommit.
 - Locatie-ID's: 0007 Thetford, 1002 Lymhurst, 2004 Bridgewatch, 3008 Martlock, 4002 Fort Sterling, 3005 Caerleon, 5003 Brecilien, 3003 of `*-Auction2` = Black Market (nog niet live geverifieerd; onbekende ID's toont de site in de status).
 - Site: instelling `S.local`, polling elke 15 s; `ingest()` laat de nieuwste prijs winnen.
+- `S.useAvg`: verkoopprijs = 7-daags gemiddelde uit de history (`avgOf`), alleen als die voor de verkoopplek bekend is (rijen krijgen `sellAvg`).
 
 ## Belangrijk
 - Logboek staat in `localStorage` onder `albionLogboek.v1` (`{entries,start,goal}`); wijzig dat formaat nooit zonder migratie, anders is Joris zijn logboek kwijt.

@@ -25,6 +25,7 @@ SPECIAL = {
 }
 DEFAULT_CITY = dict(sell=150000, buy=100000)
 DEFAULT_BM = dict(sell=0, buy=100000)
+HIST_PRICE = {}
 HIST = {("T5_MAIN_SWORD", "Lymhurst"): 14, ("T5_MAIN_SWORD", "Martlock"): 4, ("T5_MAIN_SWORD", "Black Market"): None,
         ("T4_ORE", "Lymhurst"): 3000, ("T4_ORE", "Martlock"): 2500}
 
@@ -60,7 +61,7 @@ def history(route):
             if n is None:
                 continue
             out.append({"location": l, "item_id": i, "quality": 1, "data": [
-                {"item_count": n, "avg_price": 1000, "timestamp": (now - datetime.timedelta(days=k)).strftime("%Y-%m-%dT%H:%M:%S")} for k in range(1, 8)]})
+                {"item_count": n, "avg_price": HIST_PRICE.get((i, l), 1000), "timestamp": (now - datetime.timedelta(days=k)).strftime("%Y-%m-%dT%H:%M:%S")} for k in range(1, 8)]})
     route.fulfill(status=200, body=json.dumps(out), headers={"access-control-allow-origin": "*", "content-type": "application/json"})
 
 
@@ -422,6 +423,22 @@ with sync_playwright() as p:
     p5.click("#planner summary"); p5.fill("#plBudget", "10m"); p5.press("#plBudget", "Tab")
     check("3 stuks" in p5.inner_text("#plOut"), "planner begrenst op de 3 stuks die de BM vraagt")
     check(not err5, "geen JS-fouten met eigen data: %s" % err5)
+
+    # ---------- winst met de gemiddelde verkoopprijs ----------
+    HIST_PRICE[("T5_MAIN_SWORD", "Martlock")] = 160000
+    p5.uncheck("#localOn")
+    p5.click("#modeCity")
+    p5.click("#scanBtn"); p5.wait_for_function(DONE, timeout=90000)
+    p5.fill("#q", "expert's broadsword")
+    before = [r for r in rows(p5) if r[0].startswith("T5E")]
+    p5.check("#useAvg")
+    sw = [r for r in rows(p5) if r[0].startswith("T5E")]
+    print("gem. prijs:", before[:1], sw[:1])
+    check(sw and sw[0][1] == "Lymhurst → Martlock" and sw[0][3].startswith("160.000") and "gem. 7 dagen" in sw[0][3], "verkoopprijs = gemiddelde van 7 dagen (160.000)")
+    check(sw and sw[0][4] == "+53.600", "winst met gemiddelde: 160.000 × 0,96 − 100.000 = +53.600 (was %s)" % (sw[0][4] if sw else None))
+    p5.uncheck("#useAvg")
+    sw = [r for r in rows(p5) if r[0].startswith("T5E")]
+    check(sw and sw[0][4] == "+15.200", "zonder vinkje weer de huidige prijs (+15.200, was %s)" % (sw[0][4] if sw else None))
 
     browser.close()
 

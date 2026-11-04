@@ -301,6 +301,7 @@ td.pos{color:var(--good);font-weight:600} td.neg{color:var(--bad);font-weight:60
   <div class="group">
     <h2>Verkoopvolume</h2>
     <label class="check"><input type="checkbox" id="volAuto"><span>Na de scan automatisch het volume ophalen</span></label>
+    <label class="check"><input type="checkbox" id="useAvg"><span>Winst rekenen met de <b>gemiddelde verkoopprijs</b> (7 dagen) in plaats van de huidige prijs <small style="color:var(--muted)">(als die bekend is)</small></span></label>
     <label class="field"><span>Volume ophalen voor de beste … items (op winst per stuk)</span>
       <select id="volN"><option>100</option><option>200</option><option>400</option><option>800</option><option>1500</option></select>
     </label>
@@ -478,7 +479,7 @@ const S = {
   rrr:"best", focus:false, rrrCustom:40, stationFee:0,
   orderSell:new Set([BM, ...CITIES]),
   plBudget:1000000, plKg:0, plPct:0.5, plMax:5, plRoute:"auto",
-  q:"", showAll:false, limit:100, volAuto:true, minVol:0, volN:200, local:false,
+  q:"", showAll:false, limit:100, volAuto:true, minVol:0, volN:200, local:false, useAvg:false,
   routeSell:new Set([BM, ...CITIES])
 };
 let sort = {k:"profit", dir:-1};
@@ -511,6 +512,7 @@ function loadSettings(){
     if(Array.isArray(j.orderSell)) S.orderSell = new Set(j.orderSell.filter(c => CITIES.includes(c) || c === BM));
     if(typeof j.focus === "boolean") S.focus = j.focus;
     if(typeof j.local === "boolean") S.local = j.local;
+    if(typeof j.useAvg === "boolean") S.useAvg = j.useAvg;
     for(const k of ["plBudget", "plKg", "plMax"]) if(Number.isFinite(j[k]) && j[k] >= 0) S[k] = j[k];
     if([0.25, 0.5, 1].includes(j.plPct)) S.plPct = j.plPct;
     if(typeof j.plRoute === "string") S.plRoute = j.plRoute;
@@ -894,6 +896,10 @@ function histChunks(ids, locs, qs){
   if(cur.length) out.push({ids:cur, url:head + cur.join(",") + tail});
   return out;
 }
+function avgOf(id, q, city){
+  const e = volEntry(id, q, city);
+  return e && !e.none && e.avgPrice > 0 && e.days > 0 ? Math.round(e.avgPrice) : null;
+}
 function rowSides(r){ return r.from === "Craft" ? [r.to] : [r.from, r.to]; }
 function attachVol(r){
   r.vA = r.from === "Craft" ? null : volGet(r.id, r.quality, r.from);
@@ -1067,9 +1073,11 @@ function computeFlips(){
         const instantSell = b === BM || (!orders && S.sellMethod === "instant");
         const sellFee = tax + (!instantSell ? SETUP : 0);
         // buy orders: verkopen met een sell order 1 silver onder de laagste
-        const sp = instantSell ? B.buy : orders ? (B.sell > 1 ? B.sell - 1 : 0) : B.sell;
+        let sp = instantSell ? B.buy : orders ? (B.sell > 1 ? B.sell - 1 : 0) : B.sell;
         const st = instantSell ? B.buyT : B.sellT;
-        if(!sp || !fresh(st)) continue;
+        const ap = S.useAvg ? avgOf(id, quality, b) : null;   // gemiddelde verkoopprijs van de laatste 7 dagen
+        if(ap) sp = ap;
+        if(!sp || (!ap && !fresh(st))) continue;
         const cost = bp * (1 + buyFee), net = sp * (1 - sellFee);
         const profit = net - cost, roi = profit / cost * 100;
         if(profit < S.minProfit || roi < S.minRoi) continue;
@@ -1077,7 +1085,7 @@ function computeFlips(){
         const kg = p.it.wt ? p.it.wt[p.tier - 2] || 0 : 0;
         found.push({id, quality, name, tier:p.tier, ench:p.e, from:a, to:b, buy:bp, buyT:bt, sell:sp, sellT:st, profit, roi, kg, cat:p.it.c,
           costUnit:cost, buyOrder:buyFee > 0, sellOrder:!instantSell,
-          buyQty:!orders && S.buyMethod === "instant" ? A.sellAmt || null : null, sellQty:instantSell ? B.buyAmt || null : null});
+          buyQty:!orders && S.buyMethod === "instant" ? A.sellAmt || null : null, sellQty:instantSell && !ap ? B.buyAmt || null : null, sellAvg:!!ap});
       }
     }
     if(!found.length) continue;
@@ -1145,16 +1153,18 @@ function computeCrafts(){
       const B = o[target]; if(!B) continue;
       const isBm = target === BM;
       const instant = isBm || S.sellMethod === "instant";
-      const sp = instant ? B.buy : B.sell;
+      let sp = instant ? B.buy : B.sell;
       const st = instant ? B.buyT : B.sellT;
-      if(!sp || !fresh(st)) continue;
+      const ap = S.useAvg ? avgOf(id, quality, target) : null;
+      if(ap) sp = ap;
+      if(!sp || (!ap && !fresh(st))) continue;
       const net = sp * (1 - tax - (!isBm && S.sellMethod === "order" ? SETUP : 0));
       const profit = net - cost, roi = profit / cost * 100;
       if(profit < S.minProfit || roi < S.minRoi) continue;
       if(S.maxRoi > 0 && roi > S.maxRoi) continue;
       found.push({id, quality, name, tier:p.tier, ench:p.e, from:"Craft", to:target, buy:cost, buyT:oldest, sell:sp, sellT:st, profit, roi,
         kg:p.it.wt ? p.it.wt[p.tier - 2] || 0 : 0, cat:p.it.c,
-        craft:{lines, matCost, fee, rrr, city:rr.city, bonus:rr.bonus}, costUnit:cost});
+        craft:{lines, matCost, fee, rrr, city:rr.city, bonus:rr.bonus}, costUnit:cost, sellAvg:!!ap});
     }
     if(!found.length) continue;
     if(S.showAll) rows.push(...found);
@@ -1315,7 +1325,9 @@ function render(){
       td2.appendChild(document.createTextNode(r.to));
     }
     const td3 = document.createElement("td"); td3.className = "num"; td3.textContent = fmt(r.buy); td3.appendChild(ageSpan(r.buyT, r.buyQty));
-    const td4 = document.createElement("td"); td4.className = "num"; td4.textContent = fmt(r.sell); td4.appendChild(ageSpan(r.sellT, r.sellQty));
+    const td4 = document.createElement("td"); td4.className = "num"; td4.textContent = fmt(r.sell);
+    if(r.sellAvg){ const g = document.createElement("span"); g.className = "age mid"; g.textContent = "gem. 7 dagen"; g.title = "Gemiddelde verkoopprijs van de laatste 7 dagen (uit de history)"; td4.appendChild(g); }
+    else td4.appendChild(ageSpan(r.sellT, r.sellQty));
     const td5 = document.createElement("td"); td5.className = "num profit"; td5.textContent = "+" + fmt(r.profit);
     const td6 = document.createElement("td"); td6.className = "num"; td6.textContent = r.roi.toFixed(1) + "%";
     const tdV = volCell(r);
@@ -1494,6 +1506,8 @@ function init(){
   $("volN").addEventListener("change", e => { S.volN = +e.target.value; updateVolEst(); changed(); });
   $("server").addEventListener("change", e => { S.server = e.target.value; volStore.clear(); changed(true); });
   $("volAuto").addEventListener("change", e => { S.volAuto = e.target.checked; changed(); });
+  $("useAvg").checked = S.useAvg;
+  $("useAvg").addEventListener("change", e => { S.useAvg = e.target.checked; changed(); });
   $("volBtn").addEventListener("click", () => fetchVolumes("", ""));
   $("premium").addEventListener("change", e => { S.premium = e.target.checked; changed(); });
   $("buyMethod").addEventListener("change", e => { S.buyMethod = e.target.value; changed(); });
