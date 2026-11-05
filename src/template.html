@@ -450,8 +450,10 @@ td.pos{color:var(--good);font-weight:600} td.neg{color:var(--bad);font-weight:60
     <label class="field" id="mFromWrap"><span>Kopen in</span><select id="mFrom"></select></label>
     <label class="field"><span>Verkopen in</span><select id="mTo"></select></label>
     <label class="field"><span>Aantal</span><input type="number" id="mQty" min="1" step="1" value="1"></label>
+    <label class="field" id="mBuyWrap"><span>Eigen koopprijs (optioneel)</span><input type="text" id="mBuy" inputmode="decimal" placeholder="per stuk, bijv. 150k"></label>
+    <label class="field"><span>Eigen verkoopprijs (optioneel)</span><input type="text" id="mSell" inputmode="decimal" placeholder="per stuk, bijv. 190k"></label>
   </div>
-  <p class="est">Rekent met je instellingen in Markt: koop- en verkoopmethode, sell order op de BM, bij craften de RRR, craftstad en waar je materialen koopt.</p>
+  <p class="est">Rekent met je instellingen in Markt: koop- en verkoopmethode, sell order op de BM, bij craften de RRR, craftstad en waar je materialen koopt. Oude prijzen mogen hier ook (je krijgt dan een waarschuwing). Weet je de prijs in-game? Vul hem zelf in, dan rekent hij daarmee.</p>
   <div class="btns">
     <button type="button" class="btn primary" id="mAdd">In mandje</button>
     <button type="button" class="btn" id="mFav">☆ Als favoriet bewaren</button>
@@ -2628,7 +2630,20 @@ function buildItemList(){
   for(const {label} of ITEMLABELS.values()){ const o = document.createElement("option"); o.value = label; frag.appendChild(o); }
   dl.appendChild(frag);
 }
-function manualPick(){ return ITEMLABELS.get($("mItem").value.trim().toLowerCase()) || null; }
+// exact uit de lijst, of losser: "t6.1 glacial staff" vindt "T6 Master's Glacial Staff" (en zet enchant .1)
+function manualParse(){
+  const raw = $("mItem").value.trim().toLowerCase();
+  const exact = ITEMLABELS.get(raw);
+  if(exact || !raw) return {pick:exact || null, ench:null, hits:[]};
+  let ench = null;
+  const txt = raw.replace(/\bt?([2-8])\.([0-4])\b/, (m, t, e) => { ench = +e; return "t" + t; })
+    .replace(/\b([2-8])\b/, "t$1").replace(/[’']/g, "'");
+  const words = txt.split(/\s+/).filter(Boolean);
+  const hits = [];
+  for(const [k, v] of ITEMLABELS){ const kw = k.replace(/[’]/g, "'"); if(words.every(w => kw.includes(w))) hits.push(v); }
+  return {pick:hits.length === 1 ? hits[0] : null, ench, hits};
+}
+function manualPick(){ return manualParse().pick; }
 function manualSync(){
   const pick = manualPick(), sel = $("mEnch"), cur = sel.value;
   sel.textContent = "";
@@ -2637,14 +2652,20 @@ function manualSync(){
   if([...sel.options].some(o => o.value === cur)) sel.value = cur;
   const craft = $("mKind").value === "craft";
   $("mFromWrap").classList.toggle("hidden", craft);
+  $("mBuyWrap").classList.toggle("hidden", craft);
+  const pe = manualParse().ench;
+  if(pick && pe != null && [...sel.options].some(o => +o.value === pe)) sel.value = String(pe);
   $("mQual").disabled = craft; if(craft) $("mQual").value = "1";
   const res = pick && (pick.it.c === "r" || pick.it.c === "m");
   for(const o of $("mTo").options) if(o.value === BM) o.disabled = !!res;
   if(res && $("mTo").value === BM) $("mTo").value = CITIES[0];
 }
 function manualSpec(){
-  const pick = manualPick();
-  if(!pick) return {err:"Kies een item uit de lijst (begin te typen, bijvoorbeeld “Glacial”)."};
+  const {pick, hits} = manualParse();
+  if(!pick){
+    if(hits.length > 1) return {err:hits.length + " items passen hierbij, bijv. " + hits.slice(0, 3).map(h => h.label).join(", ") + ". Typ de tier erbij (bijv. T6) of kies uit de lijst."};
+    return {err:"Item niet gevonden. Begin te typen en kies uit de lijst, bijv. “T6 Glacial Staff”."};
+  }
   const e = +$("mEnch").value || 0, craft = $("mKind").value === "craft";
   const id = productId(pick.it, pick.tier, e), q = craft ? 1 : +$("mQual").value || 1;
   const to = $("mTo").value, from = craft ? "Craft" : $("mFrom").value;
@@ -2658,23 +2679,52 @@ async function manualAdd(asFav){
   const {spec, err} = manualSpec();
   if(err){ msg.textContent = err; msg.className = "est err"; return; }
   if(scanning){ msg.textContent = "Er loopt al een scan; wacht tot die klaar is."; return; }
+  const own = {buy:spec.mode === "craft" ? null : parseSilver($("mBuy").value), sell:parseSilver($("mSell").value)};
+  if(($("mBuy").value.trim() && !own.buy && spec.mode !== "craft") || ($("mSell").value.trim() && !own.sell)){
+    msg.textContent = "Die prijs snap ik niet. Schrijf bijv. 150000, 150k of 1,2m."; msg.className = "est err"; return;
+  }
   msg.className = "est";
   const {fatal} = await fetchForSpecs([spec], t => { msg.textContent = t; });
   if(fatal){ msg.textContent = CORS_HINT; msg.className = "est err"; return; }
-  const ev = evalFav(spec);
-  if(!ev){ msg.textContent = "Geen verse prijs gevonden voor deze route (ouder dan " + S.maxAge + " uur of nergens te koop). Kies een andere stad of zet in Markt de maximale leeftijd hoger."; msg.className = "est err"; return; }
+  const ev = evalManual(spec, own);
+  if(!ev){
+    const miss = spec.mode === "craft" ? "verkoopprijs in " + spec.to + " of de materiaalprijzen" : "prijs in " + spec.from + " of " + (spec.to === BM ? "de Black Market" : spec.to);
+    msg.textContent = "Geen " + miss + " bekend. Vul hierboven zelf de koop- en/of verkoopprijs in, dan kan hij er wel in."; msg.className = "est err"; return;
+  }
   const qty = Math.max(1, Math.round(+$("mQty").value || 1));
   const r = ev.row, label = "T" + spec.tier + (spec.ench ? "." + spec.ench : "") + " " + spec.name;
+  const ages = [r.buyT, r.sellT].filter(t => t != null).map(t => (Date.now() - t) / 3600000);
+  const oldH = ages.length ? Math.max(...ages) : 0;
+  const warn = oldH > S.maxAge ? " ⚠ Let op: de prijs is " + Math.round(oldH) + " uur oud; check hem in-game." : "";
   if(asFav){
     if(!FAV.list.some(f => f.key === spec.key)){ FAV.list.push({...spec, saved:Date.now(), lastProfit:r.profit}); favSave(); updateFavUi(); }
-    msg.textContent = label + " bewaard in Favorieten (winst nu " + signed(r.profit) + " per stuk).";
+    msg.textContent = label + " bewaard in Favorieten (winst nu " + signed(r.profit) + " per stuk)." + warn;
   }else{
     const key = "manual|" + spec.key, ex = CART.items.find(x => x.key === key);
     if(ex) ex.qty += qty; else CART.items.push({...ev.snap, key, qty});
     CART.stage = "select"; cartSave(); updateCartUi();
-    msg.textContent = qty + "× " + label + " toegevoegd (winst nu " + signed(r.profit) + " per stuk" + (r.vEff != null ? ", " + fmtVol(r.vEff) + " verkocht per dag" : "") + ").";
+    msg.textContent = qty + "× " + label + " toegevoegd (winst nu " + signed(r.profit) + " per stuk" + (r.vEff != null ? ", " + fmtVol(r.vEff) + " verkocht per dag" : "") + ")." + warn;
   }
-  msg.className = "est ok";
+  msg.className = warn ? "est" : "est ok";
+}
+// rekent een handmatig item door: prijzen van elke leeftijd, en eigen prijzen gaan voor
+function evalManual(spec, own){
+  const patch = [];
+  const put = (city, q, fields) => {
+    const key = spec.itemId + "|" + q;
+    let o = store.get(key), made = false;
+    if(!o){ o = Object.create(null); store.set(key, o); made = true; }
+    const had = !!o[city], prev = had ? {...o[city]} : null;
+    const rec = o[city] || (o[city] = {sell:null, sellT:null, buy:null, buyT:null});
+    Object.assign(rec, fields);
+    patch.push(() => { if(had) o[city] = prev; else delete o[city]; if(made) store.delete(key); });
+  };
+  const now = Date.now(), q = spec.mode === "craft" ? 1 : spec.quality;
+  if(own.buy && spec.mode !== "craft") put(spec.from, q, {sell:own.buy, sellT:now, buy:own.buy, buyT:now, sellAmt:null, buyAmt:null});
+  if(own.sell) put(spec.to, q, {sell:own.sell, sellT:now, buy:own.sell, buyT:now, sellAmt:null, buyAmt:null});
+  try{
+    return withSettings({maxAge:1e7}, () => evalFav(own.sell ? {...spec, useAvg:false} : spec));
+  }finally{ for(const f of patch.reverse()) f(); }
 }
 function initManual(){
   buildItemList();
