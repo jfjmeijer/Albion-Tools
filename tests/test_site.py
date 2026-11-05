@@ -652,6 +652,25 @@ with sync_playwright() as p:
     check("Lymhurst" in det and "Martlock" not in det, "recept: alle materialen uit Lymhurst")
     check(not err8, "geen JS-fouten bij materiaalkeuze: %s" % err8)
 
+    # ---------- spec-tree ----------
+    p8.click("#tabMarkt"); p8.click("#modeCraft")
+    check(p8.locator("#tree option[value=froststaff]").count() == 1, "Frost Staff staat in de spec-tree-lijst")
+    p8.select_option("#tree", "froststaff")
+    check(p8.input_value("#q") == "", "zoekveld leeg bij kiezen van een tree")
+    check("Glacial Staff" in p8.inner_text("#treeInfo"), "uitleg noemt de items in de tree: %s" % p8.inner_text("#treeInfo")[:120])
+    n_tree = p8.evaluate("selectedProducts().length")
+    bad = p8.evaluate("selectedProducts().filter(p => p.it.st !== 'froststaff').length")
+    check(n_tree > 0 and bad == 0, "selectie bevat alleen frost staffs (%d producten)" % n_tree)
+    p8.click("#scanBtn"); p8.wait_for_function(DONE, timeout=120000)
+    ids = p8.evaluate("withSettings({minProfit:-Infinity, minRoi:-Infinity, maxRoi:0, showAll:true}, () => compute().rows.map(r => r.id))")
+    check(len(ids) > 0 and all("FROST" in i or "GLACIAL" in i or "ICE" in i or "STAFF" in i for i in ids), "scan geeft alleen frost-staff-rijen (%d)" % len(ids))
+    p8.reload(); p8.wait_for_timeout(500)
+    check(p8.input_value("#tree") == "froststaff", "spec-tree blijft bewaard na herladen")
+    check(p8.evaluate("evalFav({mode:'city', itemId:'T5_MAIN_SWORD', quality:1, from:'Lymhurst', to:'Martlock'}) !== undefined"), "favorieten werken los van de tree")
+    p8.select_option("#tree", "")
+    check(p8.evaluate("selectedProducts().some(p => p.it.st !== 'froststaff')"), "terug naar alle items")
+    check(not err8, "geen JS-fouten bij spec-tree: %s" % err8)
+
     # ---------- handmatig toevoegen ----------
     p8.click("#tabMandje")
     p8.click("#manualBox summary")

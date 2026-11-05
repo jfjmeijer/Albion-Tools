@@ -32,6 +32,7 @@ select:focus,input:focus,textarea:focus,button:focus-visible{outline:2px solid v
 .check{display:flex;gap:8px;align-items:flex-start;margin:0 0 8px;cursor:pointer}
 .check input{margin-top:3px}
 .chips{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:9px}
+.chips.dim{opacity:.4}
 .chip{background:var(--panel2);color:var(--muted);border:1px solid var(--line);border-radius:999px;padding:4px 11px;font:inherit;font-size:12.5px;cursor:pointer}
 .chip[aria-pressed=true]{background:rgba(226,178,77,.14);border-color:var(--accent);color:var(--accent)}
 .chip:disabled{opacity:.35;cursor:not-allowed;border-style:dashed}
@@ -328,6 +329,10 @@ td.pos{color:var(--good);font-weight:600} td.neg{color:var(--bad);font-weight:60
 
   <div class="group">
     <h2>Items</h2>
+    <label class="field"><span>Spec-tree (alles wat je met dezelfde crafter-spec maakt)</span>
+      <select id="tree"><option value="">Alle items (gebruik de knoppen hieronder)</option></select>
+    </label>
+    <p class="est hidden" id="treeInfo"></p>
     <div class="chips" id="cats"></div>
     <div class="chips" id="tiers"></div>
     <div class="chips" id="ench"></div>
@@ -593,7 +598,7 @@ const S = {
   matCities:new Set(CITIES), craftSell:new Set([BM, ...CITIES]),
   buyMethod:"instant", sellMethod:"instant",
   cats:new Set(["w","a","o","c","b"]), tiers:new Set([4,5,6]), ench:new Set([0,1,2,3,4]),
-  art:"all", quality:"1", maxAge:6, minProfit:5000, minRoi:5, maxRoi:200, maxBuy:0,
+  art:"all", tree:"", quality:"1", maxAge:6, minProfit:5000, minRoi:5, maxRoi:200, maxBuy:0,
   rrr:"best", focus:false, rrrCustom:40, stationFee:0,
   orderSell:new Set([BM, ...CITIES]),
   plBudget:1000000, plKg:0, plPct:0.5, plMax:5, plRoute:"auto",
@@ -651,6 +656,7 @@ function loadSettings(){
     if(Array.isArray(j.ench)) S.ench = new Set(j.ench.filter(e => e >= 0 && e <= 4));
     if(j.quality === "1" || j.quality === "1,2,3,4,5") S.quality = j.quality;
     if(j.art === "all" || j.art === "only" || j.art === "none") S.art = j.art;
+    if(typeof j.tree === "string" && (!j.tree || TREE_LABELS[j.tree])) S.tree = j.tree;
     for(const k of ["maxAge","minProfit","minRoi","maxRoi","maxBuy","limit","rrrCustom","stationFee","minVol"]) if(Number.isFinite(j[k])) S[k] = j[k];
     if(typeof j.volAuto === "boolean") S.volAuto = j.volAuto;
     if(j.rrr === "custom" || j.rrr === "best" || CRAFT_CITIES.includes(j.rrr)) S.rrr = j.rrr;
@@ -747,18 +753,59 @@ function compName(id){
   if(!p) return id;
   return nameOf(p.it, p.tier) + (p.e ? " ." + p.e : "");
 }
+const TREE_LABELS = {
+  arcanestaff:"Arcane Staff", axe:"Axe", bow:"Bow", crossbow:"Crossbow", cursestaff:"Cursed Staff", dagger:"Dagger",
+  firestaff:"Fire Staff", froststaff:"Frost Staff", hammer:"Hammer", holystaff:"Holy Staff", knuckles:"War Gloves",
+  mace:"Mace", naturestaff:"Nature Staff", quarterstaff:"Quarterstaff", shapeshifterstaff:"Shapeshifter Staff", spear:"Spear", sword:"Sword",
+  cloth_armor:"Cloth Armor (robes)", cloth_helmet:"Cloth Helmet (cowls)", cloth_shoes:"Cloth Shoes (sandals)",
+  leather_armor:"Leather Armor (jackets)", leather_helmet:"Leather Helmet (hoods)", leather_shoes:"Leather Shoes",
+  plate_armor:"Plate Armor", plate_helmet:"Plate Helmet", plate_shoes:"Plate Shoes (boots)",
+  shieldtype:"Shield", torchtype:"Torch", booktype:"Tome", capes:"Cape", bags:"Bag",
+  gather_fiber:"Verzamelgear: fiber", gather_hide:"Verzamelgear: hide", gather_ore:"Verzamelgear: ore",
+  gather_rock:"Verzamelgear: stone", gather_wood:"Verzamelgear: wood", gather_fish:"Verzamelgear: vissen"
+};
+const TREE_GROUPS = [["Wapens", "w"], ["Armor", "a"], ["Off-hands", "o"], ["Capes en bags", "cb"], ["Verzamelgear", "g"]];
+function initTree(){
+  const sel = $("tree"), by = new Map();
+  for(const it of BASES) if(it.st && TREE_LABELS[it.st]){
+    const g = it.c === "c" || it.c === "b" ? "cb" : it.c;
+    if(!by.has(g)) by.set(g, new Map());
+    const m = by.get(g); m.set(it.st, (m.get(it.st) || 0) + 1);
+  }
+  for(const [label, g] of TREE_GROUPS){
+    const m = by.get(g); if(!m) continue;
+    const og = document.createElement("optgroup"); og.label = label;
+    for(const [st, n] of [...m].sort((a, b) => TREE_LABELS[a[0]].localeCompare(TREE_LABELS[b[0]]))){
+      const o = document.createElement("option"); o.value = st; o.textContent = TREE_LABELS[st] + " (" + n + " items)"; og.appendChild(o);
+    }
+    sel.appendChild(og);
+  }
+  sel.value = S.tree;
+  treeUi();
+}
+function treeUi(){
+  const info = $("treeInfo"), on = !!S.tree;
+  $("cats").classList.toggle("dim", on);
+  info.classList.toggle("hidden", !on);
+  if(on){
+    const names = BASES.filter(it => it.st === S.tree).map(it => it.n || nameOf(it, 4).replace(/^\S+'s /, ""));
+    info.textContent = "Alleen de " + TREE_LABELS[S.tree] + "-tree: " + names.join(", ") + ". De itemsoort-knoppen tellen nu niet; tiers, enchants en artefact-keuze wel. Tip: zet in Craften de RRR en focus goed, met spec en focus verdien je hier het meest aan.";
+  }
+}
 function catAllowed(c){
   if(S.mode === "bm") return c !== "r" && c !== "m";
   if(S.mode === "craft") return c !== "r";
   return true;
 }
 function artOk(it){
-  return S.art === "all" || (S.art === "only" ? !!it.af : !it.af);
+  return (S.art === "all" || (S.art === "only" ? !!it.af : !it.af)) && (!S.tree || it.st === S.tree);
 }
+// met een spec-tree gekozen tellen de itemsoort-knoppen niet
+function catOn(c){ return S.tree ? true : S.cats.has(c); }
 function selectedProducts(){
   const out = [];
   for(const it of BASES){
-    if(!S.cats.has(it.c) || !catAllowed(it.c) || !artOk(it)) continue;
+    if(!catOn(it.c) || !catAllowed(it.c) || !artOk(it)) continue;
     for(let ti = 0; ti < 7; ti++){
       const tier = 2 + ti;
       if(!S.tiers.has(tier)) continue;
@@ -773,7 +820,7 @@ function selectedProducts(){
   return out;
 }
 function passesSelection(p){
-  return S.cats.has(p.it.c) && catAllowed(p.it.c) && artOk(p.it) && S.tiers.has(p.tier) && S.ench.has(p.e);
+  return catOn(p.it.c) && catAllowed(p.it.c) && artOk(p.it) && S.tiers.has(p.tier) && S.ench.has(p.e);
 }
 
 /* ---------- Verzoeken opbouwen ---------- */
@@ -1714,6 +1761,7 @@ function init(){
   $("showAll").addEventListener("change", e => { S.showAll = e.target.checked; changed(); });
   $("limit").addEventListener("change", e => { S.limit = +e.target.value; changed(); });
   $("art").addEventListener("change", e => { S.art = e.target.value; changed(true); });
+  $("tree").addEventListener("change", e => { S.tree = e.target.value; if(S.tree && S.q){ S.q = ""; $("q").value = ""; } treeUi(); changed(true); });
   $("scanBtn").addEventListener("click", scan);
   $("stopBtn").addEventListener("click", () => { if(ctrl) ctrl.abort(); });
   $("testBtn").addEventListener("click", testConnection);
@@ -2310,6 +2358,7 @@ function initSite(){
   initTravel();
   initInsight();
   initManual();
+  initTree();
   showView(viewFromHash());
 }
 
@@ -3088,7 +3137,7 @@ function evalFav(f){
   const base = {mode:f.mode, buyMethod:f.buyMethod || "instant", sellMethod:f.sellMethod || "instant", bmSell:f.bmSell || "instant",
     rrr:f.rrr || "best", focus:!!f.focus, rrrCustom:Number.isFinite(f.rrrCustom) ? f.rrrCustom : S.rrrCustom,
     stationFee:Number.isFinite(f.stationFee) ? f.stationFee : S.stationFee, useAvg:!!f.useAvg, matMode:f.matMode || "cheapest",
-    q:"", minProfit:-Infinity, minRoi:-Infinity, maxRoi:0, maxBuy:0, art:"all", showAll:true,
+    q:"", minProfit:-Infinity, minRoi:-Infinity, maxRoi:0, maxBuy:0, art:"all", tree:"", showAll:true,
     cats:new Set([p.it.c]), tiers:new Set([p.tier]), ench:new Set([p.e])};
   let snap = null;
   const row = withSettings(f.mode === "craft" ? {...base, craftSell:new Set([f.to])}

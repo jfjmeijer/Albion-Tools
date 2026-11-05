@@ -221,6 +221,29 @@ for rec in out:
             break
 print("bases with crafting category:", sum(1 for r in out if r.get("cc")), "of", len(out))
 
+# ---------- spec-tree (welke crafter-spec het item gebruikt) ----------
+for rec in out:
+    if rec.get("f") == "L":
+        continue
+    st = None
+    for tier in range(4, 9):
+        node = nodes.get("T%d_%s" % (tier, rec["b"]))
+        if not node:
+            continue
+        sub, cc = node.get("@shopsubcategory1"), node.get("@craftingcategory")
+        if sub and sub != "other":
+            st = ("gather_" + sub) if cc == "gatherergear" else sub
+            break
+    if not st:
+        st = {"c": "capes", "b": "bags"}.get(rec["c"])
+    if st in ("accessoires_capes_capes",):
+        st = "capes"
+    if st == "satchels":
+        st = "bags"
+    if st:
+        rec["st"] = st
+print("bases with a spec tree:", sum(1 for r in out if r.get("st")), sorted({r["st"] for r in out if r.get("st")}))
+
 # ---------- gewichten per tier (kg), voor winst per kg ----------
 wmiss = 0
 for rec in out:
