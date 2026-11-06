@@ -687,6 +687,19 @@ with sync_playwright() as p:
     p8.click("#scanBtn"); p8.wait_for_function(DONE, timeout=120000)
     ids = p8.evaluate("withSettings({minProfit:-Infinity, minRoi:-Infinity, maxRoi:0, showAll:true}, () => compute().rows.map(r => r.id))")
     check(len(ids) > 0 and all("FROST" in i or "GLACIAL" in i or "ICE" in i or "STAFF" in i for i in ids), "scan geeft alleen frost-staff-rijen (%d)" % len(ids))
+    # ---------- craften: waarom niks? ----------
+    d = p8.evaluate("""() => withSettings({bmSell:'order', craftSell:new Set(['Black Market']), minProfit:1e9, minRoi:0, tree:'', q:''}, () => {
+        const r = computeCrafts().diag; return {items:r.items, noOrder:r.noOrder, below:r.below, best:!!r.best}; })""")
+    d2 = p8.evaluate("""() => withSettings({bmSell:'instant', craftSell:new Set(['Black Market']), minProfit:1e9, minRoi:0, tree:'', q:''}, () => {
+        const r = computeCrafts().diag; return {items:r.items, noOrder:r.noOrder, below:r.below, best:!!r.best}; })""")
+    print("diag order:", d, "instant:", d2)
+    check(d["items"] > 0 and d["noOrder"] > 0, "BM sell order zonder BM-sell orders wordt als reden geteld")
+    check(d2["below"] > 0 and d2["best"], "direct aan BM: rijen berekend, beste rij bekend")
+    p8.evaluate("S.minProfit = 1e9; S.bmSell = 'instant'; render()")
+    txt = p8.inner_text("#empty")
+    check("Waarom" in txt and "Beste die er was" in txt, "lege craftlijst legt uit waarom: %s" % txt[:160])
+    p8.evaluate("S.minProfit = 5000; render()")
+
     p8.reload(); p8.wait_for_timeout(500)
     check(p8.input_value("#tree") == "froststaff", "spec-tree blijft bewaard na herladen")
     check(p8.evaluate("evalFav({mode:'city', itemId:'T5_MAIN_SWORD', quality:1, from:'Lymhurst', to:'Martlock'}) !== undefined"), "favorieten werken los van de tree")

@@ -33,6 +33,7 @@ select:focus,input:focus,textarea:focus,button:focus-visible{outline:2px solid v
 .check input{margin-top:3px}
 .chips{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:9px}
 .chips.dim{opacity:.4}
+ul.why{margin:6px 0 8px 18px;text-align:left}ul.why li{margin:2px 0}
 .chip{background:var(--panel2);color:var(--muted);border:1px solid var(--line);border-radius:999px;padding:4px 11px;font:inherit;font-size:12.5px;cursor:pointer}
 .chip[aria-pressed=true]{background:rgba(226,178,77,.14);border-color:var(--accent);color:var(--accent)}
 .chip:disabled{opacity:.35;cursor:not-allowed;border-style:dashed}
@@ -1306,6 +1307,8 @@ function computeCrafts(){
   const fresh = freshFn();
   const needle = S.q.trim().toLowerCase();
   const matCache = new Map();
+  // waarom komt er niks uit? telt per reden, en onthoudt de beste rij zonder filters
+  const diag = {items:0, noSell:0, noMat:0, matMiss:new Map(), noOrder:0, sellOld:0, below:0, best:null};
   function bestMat(id, cities){
     const ck = id + "|" + cities.join(",");
     if(matCache.has(ck)) return matCache.get(ck);
@@ -1330,7 +1333,7 @@ function computeCrafts(){
     let matCost = 0, oldest = Infinity;
     for(const [cid, n, ret] of rec){
       const b = bestMat(cid, cities);
-      if(!b) return null;
+      if(!b){ lastMiss = cid; return null; }
       const cost = b.eff * n * (ret ? (1 - rrr) : 1);
       matCost += cost; oldest = Math.min(oldest, b.t);
       lines.push({id:cid, n, ret, raw:b.raw, city:b.city, t:b.t, cost, name:compName(cid)});
@@ -1338,7 +1341,7 @@ function computeCrafts(){
     return {lines, matCost, oldest};
   }
   const rows = [];
-  let missing = 0;
+  let missing = 0, lastMiss = null;
   for(const [key, o] of store){
     const sep = key.lastIndexOf("|");
     const id = key.slice(0, sep), quality = +key.slice(sep + 1);
@@ -1352,7 +1355,8 @@ function computeCrafts(){
     // is er überhaupt een verkoopprijs? anders niet als 'ontbrekend' tellen
     let hasSell = false;
     for(const t of S.craftSell){ const B = o[t]; if(B && (B.buy || B.sell)) { hasSell = true; break; } }
-    if(!hasSell) continue;
+    diag.items++;
+    if(!hasSell){ diag.noSell++; continue; }
     const rr = rrrFor(p.it), rrr = rr.rrr;
     // waar koop je de materialen? (S.matMode)
     const mm = S.matMode;
@@ -1362,8 +1366,13 @@ function computeCrafts(){
     else if(CITIES.includes(mm)) options = [[mm]];
     else options = [[...S.matCities]];
     let pick = null;
+    lastMiss = null;
     for(const cities of options){ const m = matsFrom(rec, rrr, cities); if(m && (!pick || m.matCost < pick.matCost)) pick = m; }
-    if(!pick){ missing++; continue; }
+    if(!pick){
+      missing++; diag.noMat++;
+      if(lastMiss){ const nm = compName(lastMiss); diag.matMiss.set(nm, (diag.matMiss.get(nm) || 0) + 1); }
+      continue;
+    }
     const {lines, matCost, oldest} = pick;
     const fee = itemValue(p.it, p.tier, p.e, rec) * 0.1125 * S.stationFee / 100;
     const cost = matCost + fee;
@@ -1377,11 +1386,13 @@ function computeCrafts(){
       const st = instant ? B.buyT : B.sellT;
       const ap = S.useAvg ? avgOf(id, quality, target) : null;
       if(ap) sp = ap;
-      if(!sp || (!ap && !fresh(st, target))) continue;
+      if(!sp){ if(isBm && !instant && B.buy) diag.noOrder++; continue; }
+      if(!ap && !fresh(st, target)){ diag.sellOld++; continue; }
       const net = sp * (1 - tax - (instant ? 0 : SETUP));
       const profit = net - cost, roi = profit / cost * 100;
-      if(profit < S.minProfit || roi < S.minRoi) continue;
-      if(S.maxRoi > 0 && roi > S.maxRoi) continue;
+      if(!diag.best || profit > diag.best.profit) diag.best = {name:"T" + p.tier + (p.e ? "." + p.e : "") + " " + name, to:target, profit, roi, cost, sp};
+      if(profit < S.minProfit || roi < S.minRoi){ diag.below++; continue; }
+      if(S.maxRoi > 0 && roi > S.maxRoi){ diag.below++; continue; }
       found.push({id, quality, name, tier:p.tier, ench:p.e, from:"Craft", to:target, buy:cost, buyT:oldest, sell:sp, sellT:st, profit, roi,
         kg:p.it.wt ? p.it.wt[p.tier - 2] || 0 : 0, cat:p.it.c,
         craft:{lines, matCost, fee, rrr, city:rr.city, bonus:rr.bonus}, costUnit:cost, sellAvg:!!ap, sellOrder:!instant,
@@ -1391,7 +1402,36 @@ function computeCrafts(){
     if(S.showAll) rows.push(...found);
     else rows.push(found.reduce((x, y) => y.profit > x.profit ? y : x));
   }
-  return {rows, missing};
+  return {rows, missing, diag};
+}
+// uitleg waarom craften niks oplevert, met de getallen erbij
+function craftWhy(box, d){
+  box.textContent = "";
+  box.appendChild(el("p", "", "Geen craft-kansen die aan je filters voldoen. Waarom:"));
+  if(!d){ return; }
+  const ul = document.createElement("ul"); ul.className = "why";
+  const li = t => ul.appendChild(el("li", "", t));
+  li(d.items + " items bekeken (in je selectie, met een recept).");
+  if(d.noSell) li(d.noSell + " zonder enige verkoopprijs op je verkoopplekken.");
+  if(d.noMat){
+    const top = [...d.matMiss].sort((a, b) => b[1] - a[1]).slice(0, 4).map(([n, c]) => n + " (" + c + "×)").join(", ");
+    li(d.noMat + " overgeslagen: materiaalprijs ontbreekt of is te oud in " + matWhere() + (top ? ". Vooral: " + top : "") + ".");
+  }
+  if(d.noOrder) li(d.noOrder + "× geen BM-sell order om tegen te verkopen. Er staan op de BM bijna nooit sell orders; kies bij ‘Hoe verkoop je aan de Black Market?’ liever ‘Direct aan de buy orders van de BM’, of zet ‘gemiddelde verkoopprijs (7 dagen)’ aan.");
+  if(d.sellOld) li(d.sellOld + "× een verkoopprijs die ouder is dan je maximale leeftijd.");
+  if(d.below) li(d.below + " berekend, maar onder je min. winst (" + fmt(S.minProfit) + ") of min. ROI (" + S.minRoi + "%).");
+  box.appendChild(ul);
+  if(d.best){
+    const b = d.best;
+    box.appendChild(el("p", "", "Beste die er was: " + b.name + " → " + b.to + ": kosten " + fmt(b.cost) + ", verkoop " + fmt(b.sp) + ", winst " + signed(b.profit) + " (" + Math.round(b.roi) + "%)."));
+    if(b.profit < 0) box.appendChild(el("p", "est", "Alles maakt verlies: zonder focus en buiten de bonusstad is je terugkrijg-percentage laag (" + rrrLabel() + "). Probeer ‘Met focus’, craft in de bonusstad van het item, of hogere tiers/enchants."));
+  }
+}
+function matWhere(){
+  const mm = S.matMode;
+  if(CITIES.includes(mm)) return mm;
+  if(mm === "craftcity") return "de craftstad";
+  return "je materiaalsteden";
 }
 function compute(){ return S.mode === "craft" ? computeCrafts() : computeFlips(); }
 
@@ -1463,7 +1503,7 @@ function pipeline(){
     }
     kept = [...best.values()];
   }
-  return {all:res.rows, kept, missing:res.missing};
+  return {all:res.rows, kept, missing:res.missing, diag:res.diag};
 }
 function fmtVol(v){
   return v < 10 ? v.toLocaleString("nl-NL", {maximumFractionDigits:1}) : Math.round(v).toLocaleString("nl-NL");
@@ -1528,7 +1568,7 @@ function detailRow(r){
 }
 function render(){
   buildHead();
-  const {all, kept: rows, missing} = pipeline();
+  const {all, kept: rows, missing, diag} = pipeline();
   missingCount = missing;
   sortRows(rows, sort.k, sort.dir);
   const shown = rows.slice(0, S.limit);
@@ -1625,7 +1665,7 @@ function render(){
   if(!has){
     if(!store.size) empty.textContent = "Hier verschijnen de resultaten zodra de scan klaar is.";
     else if(S.minVol > 0 && all.length) empty.textContent = "Geen rijen met minstens " + S.minVol + " verkocht per dag (of het volume is nog niet opgehaald). Klik op ‘Volume ophalen voor deze lijst’ of verlaag het minimum.";
-    else if(S.mode === "craft") empty.textContent = "Geen craft-kansen die aan je filters voldoen." + (missing ? " " + missing + " items zijn overgeslagen omdat materiaalprijzen ontbreken of te oud zijn." : "") + " Scan je na het wisselen van modus opnieuw? Craften haalt ook de materiaalprijzen op.";
+    else if(S.mode === "craft") craftWhy(empty, diag);
     else empty.textContent = "Geen flips die aan je filters voldoen. Probeer een hogere maximale data-leeftijd, een lagere min. winst of meer steden/tiers.";
   }
   const sum = $("sum"); sum.textContent = "";
