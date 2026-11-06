@@ -378,9 +378,17 @@ td.pos{color:var(--good);font-weight:600} td.neg{color:var(--bad);font-weight:60
     <label class="field"><span>Maximale leeftijd van de prijsdata</span>
       <select id="maxAge">
         <option value="1">1 uur</option><option value="3">3 uur</option><option value="6">6 uur</option>
-        <option value="12">12 uur</option><option value="24">24 uur</option>
+        <option value="12">12 uur</option><option value="24">24 uur</option><option value="72">3 dagen</option><option value="168">7 dagen</option>
       </select>
     </label>
+    <label class="field"><span>…en voor de Black Market</span>
+      <select id="maxAgeBm">
+        <option value="0">zelfde als hierboven</option>
+        <option value="0.25">15 minuten (live gescand)</option><option value="0.5">30 minuten</option><option value="1">1 uur</option>
+        <option value="3">3 uur</option><option value="6">6 uur</option><option value="12">12 uur</option><option value="24">24 uur</option>
+      </select>
+    </label>
+    <p class="est">Scan je de BM zelf live? Zet de BM op 15–30 min en de steden ruimer (12–24 uur): dan zie je alleen verse BM-prijzen, terwijl de koopprijzen in de steden wat ouder mogen zijn. Check die koopprijs wel even in-game.</p>
     <div class="row2">
       <label class="field"><span>Min. winst (silver)</span><input type="number" id="minProfit" min="0" step="1000"></label>
       <label class="field"><span id="maxBuyLabel">Max. aankoopprijs</span><input type="number" id="maxBuy" min="0" step="10000" placeholder="geen limiet"></label>
@@ -598,7 +606,7 @@ const S = {
   matCities:new Set(CITIES), craftSell:new Set([BM, ...CITIES]),
   buyMethod:"instant", sellMethod:"instant",
   cats:new Set(["w","a","o","c","b"]), tiers:new Set([4,5,6]), ench:new Set([0,1,2,3,4]),
-  art:"all", tree:"", quality:"1", maxAge:6, minProfit:5000, minRoi:5, maxRoi:200, maxBuy:0,
+  art:"all", tree:"", quality:"1", maxAge:6, maxAgeBm:0, minProfit:5000, minRoi:5, maxRoi:200, maxBuy:0,
   rrr:"best", focus:false, rrrCustom:40, stationFee:0,
   orderSell:new Set([BM, ...CITIES]),
   plBudget:1000000, plKg:0, plPct:0.5, plMax:5, plRoute:"auto",
@@ -657,7 +665,7 @@ function loadSettings(){
     if(j.quality === "1" || j.quality === "1,2,3,4,5") S.quality = j.quality;
     if(j.art === "all" || j.art === "only" || j.art === "none") S.art = j.art;
     if(typeof j.tree === "string" && (!j.tree || TREE_LABELS[j.tree])) S.tree = j.tree;
-    for(const k of ["maxAge","minProfit","minRoi","maxRoi","maxBuy","limit","rrrCustom","stationFee","minVol"]) if(Number.isFinite(j[k])) S[k] = j[k];
+    for(const k of ["maxAge","maxAgeBm","minProfit","minRoi","maxRoi","maxBuy","limit","rrrCustom","stationFee","minVol"]) if(Number.isFinite(j[k])) S[k] = j[k];
     if(typeof j.volAuto === "boolean") S.volAuto = j.volAuto;
     if(j.rrr === "custom" || j.rrr === "best" || CRAFT_CITIES.includes(j.rrr)) S.rrr = j.rrr;
     if(typeof j.showAll === "boolean") S.showAll = j.showAll;
@@ -1234,9 +1242,12 @@ function updateRrrInfo(){
     " gear in de bonusstad · " + pc(0.58 + f) + " refinen in de bonusstad. De bonusstad per itemsoort komt uit de game-data.";
   $("focusWrap").classList.toggle("hidden", S.rrr === "custom");
 }
+// leeftijdsgrens per plek: de BM kan een eigen (strengere) grens hebben
+const fmtLimit = h => h < 1 ? Math.round(h * 60) + " min" : h + " u";
+function maxAgeFor(loc){ return loc === BM && S.maxAgeBm > 0 ? S.maxAgeBm : S.maxAge; }
 function freshFn(){
-  const maxMs = S.maxAge * 3600000, now = Date.now();
-  return t => t != null && now - t <= maxMs;
+  const cityMs = S.maxAge * 3600000, bmMs = maxAgeFor(BM) * 3600000, now = Date.now();
+  return (t, loc) => t != null && now - t <= (loc === BM ? bmMs : cityMs);
 }
 function computeFlips(){
   const tax = S.premium ? TAX_PREMIUM : TAX_FREE;
@@ -1260,7 +1271,7 @@ function computeFlips(){
       // buy orders: 1 silver boven de hoogste bestaande buy order
       const bp = orders ? (A.buy ? A.buy + 1 : 0) : S.buyMethod === "instant" ? A.sell : A.buy;
       const bt = orders || S.buyMethod !== "instant" ? A.buyT : A.sellT;
-      if(!bp || !fresh(bt)) continue;
+      if(!bp || !fresh(bt, a)) continue;
       if(S.maxBuy > 0 && bp > S.maxBuy) continue;
       for(const b of sellLocs){
         if(b === BM && (p.it.c === "r" || p.it.c === "m")) continue;   // de Black Market koopt geen grondstoffen
@@ -1272,7 +1283,7 @@ function computeFlips(){
         const st = instantSell ? B.buyT : B.sellT;
         const ap = S.useAvg ? avgOf(id, quality, b) : null;   // gemiddelde verkoopprijs van de laatste 7 dagen
         if(ap) sp = ap;
-        if(!sp || (!ap && !fresh(st))) continue;
+        if(!sp || (!ap && !fresh(st, b))) continue;
         const cost = bp * (1 + buyFee), net = sp * (1 - sellFee);
         const profit = net - cost, roi = profit / cost * 100;
         if(profit < S.minProfit || roi < S.minRoi) continue;
@@ -1305,7 +1316,7 @@ function computeCrafts(){
         const R = o[c]; if(!R) continue;
         const raw = S.buyMethod === "instant" ? R.sell : R.buy;
         const t = S.buyMethod === "instant" ? R.sellT : R.buyT;
-        if(!raw || !fresh(t)) continue;
+        if(!raw || !fresh(t, c)) continue;
         const eff = raw * (1 + buyFee);
         if(!best || eff < best.eff) best = {eff, raw, city:c, t};
       }
@@ -1366,7 +1377,7 @@ function computeCrafts(){
       const st = instant ? B.buyT : B.sellT;
       const ap = S.useAvg ? avgOf(id, quality, target) : null;
       if(ap) sp = ap;
-      if(!sp || (!ap && !fresh(st))) continue;
+      if(!sp || (!ap && !fresh(st, target))) continue;
       const net = sp * (1 - tax - (instant ? 0 : SETUP));
       const profit = net - cost, roi = profit / cost * 100;
       if(profit < S.minProfit || roi < S.minRoi) continue;
@@ -1720,7 +1731,7 @@ function init(){
 
   $("server").value = S.server; $("premium").checked = S.premium;
   $("buyMethod").value = S.buyMethod; $("sellMethod").value = S.sellMethod; $("quality").value = S.quality;
-  $("maxAge").value = String(S.maxAge); $("minProfit").value = S.minProfit; $("minRoi").value = S.minRoi;
+  $("maxAge").value = String(S.maxAge); $("maxAgeBm").value = String(S.maxAgeBm); $("minProfit").value = S.minProfit; $("minRoi").value = S.minRoi;
   $("maxRoi").value = S.maxRoi; $("maxBuy").value = S.maxBuy || ""; $("q").value = S.q;
   $("showAll").checked = S.showAll; $("limit").value = String(S.limit); $("art").value = S.art;
   $("volAuto").checked = S.volAuto; $("minVol").value = S.minVol || "";
@@ -1751,6 +1762,7 @@ function init(){
   $("sellMethod").addEventListener("change", e => { S.sellMethod = e.target.value; changed(); });
   $("quality").addEventListener("change", e => { S.quality = e.target.value; changed(true); });
   $("maxAge").addEventListener("change", e => { S.maxAge = +e.target.value; changed(); });
+  $("maxAgeBm").addEventListener("change", e => { S.maxAgeBm = +e.target.value; changed(); });
   $("rrr").addEventListener("change", e => { S.rrr = e.target.value; $("rrrCustomWrap").classList.toggle("hidden", S.rrr !== "custom"); updateRrrInfo(); changed(); });
   $("focus").checked = S.focus;
   $("focus").addEventListener("change", e => { S.focus = e.target.checked; updateRrrInfo(); changed(); });
@@ -2772,7 +2784,7 @@ function evalManual(spec, own){
   if(own.buy && spec.mode !== "craft") put(spec.from, q, {sell:own.buy, sellT:now, buy:own.buy, buyT:now, sellAmt:null, buyAmt:null});
   if(own.sell) put(spec.to, q, {sell:own.sell, sellT:now, buy:own.sell, buyT:now, sellAmt:null, buyAmt:null});
   try{
-    return withSettings({maxAge:1e7}, () => evalFav(own.sell ? {...spec, useAvg:false} : spec));
+    return withSettings({maxAge:1e7, maxAgeBm:0}, () => evalFav(own.sell ? {...spec, useAvg:false} : spec));
   }finally{ for(const f of patch.reverse()) f(); }
 }
 function initManual(){
@@ -3242,7 +3254,7 @@ function renderFavs(){
       const tp = el("td", "num " + (r.profit >= 0 ? "profit" : "neg"), (r.profit >= 0 ? "+" : "−") + fmt(Math.abs(r.profit)));
       tr.append(tc, ts, tp, el("td", "num", r.roi.toFixed(1) + "%"), volCell(r), el("td", "num", r.pot != null ? fmt(r.pot) : "–"));
     }else{
-      const na = el("td", "fav-na", store.has(f.itemId + "|" + f.quality) ? "Geen verse prijzen (ouder dan " + S.maxAge + " u of ontbrekend)" : "Klik op “Check alle” voor de prijzen van nu");
+      const na = el("td", "fav-na", store.has(f.itemId + "|" + f.quality) ? "Geen verse prijzen (ouder dan " + S.maxAge + " u" + (S.maxAgeBm > 0 ? ", BM " + fmtLimit(S.maxAgeBm) : "") + " of ontbrekend)" : "Klik op “Check alle” voor de prijzen van nu");
       na.colSpan = 6; tr.appendChild(na);
     }
     const ta = el("td");

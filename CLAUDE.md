@@ -17,6 +17,7 @@ UI-tekst is Nederlands. Joris wil korte, scanbare uitleg.
 - Craftmaterialen: `S.matMode` = `cheapest` (per materiaal, uit `S.matCities`), `onecity` (goedkoopste stad voor het hele recept), `craftcity` (bonusstad van het item), of een vaste stad; `matLocs()` bepaalt waar materialen worden opgehaald. Zit ook in `spec` van favorieten/batches.
 - Handmatig toevoegen (Mandje, `#manualBox`): bouwt een spec met `currentSpec()`, haalt prijzen op via `fetchForSpecs([spec])` en rekent met `evalFav`; cart-key begint met `manual|`. `evalManual` negeert `S.maxAge` (waarschuwt bij oude prijs) en zet eigen prijzen (`#mBuy`/`#mSell`) tijdelijk in `store`; `manualParse` zoekt ook los ("t6.1 glacial staff").
 - Spec-tree: items krijgen `st` (shopsubcategory1 uit items.json; verzamelgear `gather_<soort>`, capes/bags samengevoegd). `S.tree` filtert in `artOk`; met een tree tellen de itemsoort-knoppen niet (`catOn`). Labels in `TREE_LABELS`; `evalFav` zet `tree:""`.
+- Prijsleeftijd: `S.maxAge` (steden) en `S.maxAgeBm` (0 = zelfde; anders aparte grens voor de BM). `freshFn()` geeft `fresh(t, loc)`; geef altijd de plek mee.
 - Uitschieters: rij krijgt `outlier` als de verkoopprijs > 7d-gem. × (1 + `S.outPct`); `S.hideOut` verbergt ze.
 - Nieuwe tool = nieuwe tab: een `<main id="view…">`, een knop in `.tabs` (data-view) en een sleutel in `VIEWS`.
 

@@ -652,6 +652,29 @@ with sync_playwright() as p:
     check("Lymhurst" in det and "Martlock" not in det, "recept: alle materialen uit Lymhurst")
     check(not err8, "geen JS-fouten bij materiaalkeuze: %s" % err8)
 
+    # ---------- aparte leeftijd voor de BM ----------
+    p8.click("#tabMarkt"); p8.click("#modeBm")
+    res = p8.evaluate("""() => {
+      const id = 'T4_MAIN_SWORD', key = id + '|1', now = Date.now(), h = 3600000;
+      const keep = store.get(key);
+      store.set(key, {Lymhurst:{sell:10000, sellT:now - 10*h, buy:9000, buyT:now - 10*h},
+                      'Black Market':{sell:0, sellT:null, buy:30000, buyT:now - 5*60000}});
+      const run = o => withSettings({mode:'bm', buyCities:new Set(['Lymhurst']), minProfit:-Infinity, minRoi:-Infinity, maxRoi:0, showAll:true,
+                                     q:'', tree:'', cats:new Set(['w']), tiers:new Set([4]), ench:new Set([0]), art:'all', useAvg:false, ...o},
+                                    () => computeFlips().rows.filter(r => r.id === id).length);
+      const out = {same6:run({maxAge:6, maxAgeBm:0}), city12bm15:run({maxAge:12, maxAgeBm:0.25}),
+                   bmTooOld:(store.get(key)['Black Market'].buyT = now - 40*60000, run({maxAge:12, maxAgeBm:0.25}))};
+      if(keep) store.set(key, keep); else store.delete(key);
+      return out;
+    }""")
+    print("leeftijd:", res)
+    check(res["same6"] == 0, "10 uur oude stadsprijs valt weg bij 6 uur")
+    check(res["city12bm15"] == 1, "steden 12 u + BM 15 min: rij zichtbaar")
+    check(res["bmTooOld"] == 0, "BM-prijs van 40 min valt weg bij BM 15 min")
+    p8.select_option("#maxAgeBm", "0.25"); p8.reload(); p8.wait_for_timeout(400)
+    check(p8.input_value("#maxAgeBm") == "0.25", "BM-leeftijd blijft bewaard")
+    p8.select_option("#maxAgeBm", "0")
+
     # ---------- spec-tree ----------
     p8.click("#tabMarkt"); p8.click("#modeCraft")
     check(p8.locator("#tree option[value=froststaff]").count() == 1, "Frost Staff staat in de spec-tree-lijst")
