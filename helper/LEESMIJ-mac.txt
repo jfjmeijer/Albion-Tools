@@ -1,0 +1,25 @@
+Albion Tools - prive data (Mac)
+
+Wat zit erin
+- albion-helper-mac-arm64 / albion-helper-mac-intel : klein hulpprogramma (voor Apple-chip of Intel-Mac; het
+  startscript kiest zelf). Ontvangt de marktdata van de Albion Data Client op je eigen Mac (http://127.0.0.1:47800)
+  en geeft die aan de Albion Tools-site.
+- start-albion-prive.command : start het hulpprogramma en de Albion Data Client met -i http://127.0.0.1:47800,
+  zodat er NIETS naar de openbare database gaat.
+
+Gebruik
+1. Download de Albion Data Client voor Mac (albiondata-client-amd64-mac.zip) via
+   https://www.albion-online-data.com/client en pak hem uit, bijvoorbeeld in Downloads.
+   Start de client NIET zelf met run.command, want dan uploadt hij openbaar.
+2. Pak albion-tools-helper-mac.zip uit, bijvoorbeeld in Documenten.
+3. De eerste keer: rechtermuisklik (of Ctrl+klik) op start-albion-prive.command > Open > Open.
+   macOS waarschuwt omdat het niet ondertekend is. Daarna kun je gewoon dubbelklikken.
+   Vindt hij de client niet, dan vraagt hij je het bestand albiondata-client in het venster te slepen
+   (dat onthoudt hij).
+4. Typ je Mac-wachtwoord als hij erom vraagt (nodig om het netwerkverkeer van Albion te kunnen lezen).
+5. Open de site in Chrome: https://jfjmeijer.github.io/Albion-Tools/ en vink bij "Eigen data (prive)" het vakje aan.
+   Krijg je een melding over je lokale netwerk, klik dan Toestaan. Safari blokkeert de verbinding mogelijk.
+6. Open in Albion de markt of de Black Market. Binnen ±15 seconden zie je de prijzen op de site.
+
+De data wordt bewaard in albion-helper-data.json in deze map (maximaal 24 uur oud).
+De broncode staat in de map helper op GitHub.

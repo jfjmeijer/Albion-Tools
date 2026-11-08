@@ -1,2 +1,5 @@
 helper/albion-helper.exe
 helper/albion-helper-data.json
+helper/albion-helper-mac-arm64
+helper/albion-helper-mac-intel
+helper/client-pad.txt
