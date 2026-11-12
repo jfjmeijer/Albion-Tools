@@ -19,3 +19,8 @@ Windows waarschuwt mogelijk ("Windows heeft uw pc beveiligd") omdat het programm
 ondertekend is: kies "Meer info" > "Toch uitvoeren". De broncode staat in de map helper op GitHub.
 
 De data wordt bewaard in albion-helper-data.json naast het programma (maximaal 24 uur oud).
+
+Route-overlay (versie 1.2)
+- Het hulpprogramma leest ook je huidige zone uit albiondata-client.log (dat bestand maakt de client in deze map
+  als je hem via start-albion-prive.bat start). Op de site, tab Reisroute > "Overlay openen", volgt de overlay
+  dan vanzelf je route. Werkt dat niet, update dan de Albion Data Client naar de nieuwste versie.

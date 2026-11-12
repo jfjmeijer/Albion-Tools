@@ -23,7 +23,7 @@ import (
 )
 
 const (
-	version   = "1.1.0"
+	version   = "1.2.0"
 	listen    = "127.0.0.1:47800"
 	mergeGap  = 15 * time.Second // binnen deze tijd hoort een nieuwe upload bij dezelfde lijst (volgende pagina)
 	keepFor   = 24 * time.Hour
@@ -391,6 +391,16 @@ func handler(w http.ResponseWriter, r *http.Request) {
 		st.mu.Unlock()
 		writeJSON(w, map[string]interface{}{"ok": true, "app": "albion-tools-helper", "version": version,
 			"groups": groups, "orders": orders, "histories": hist, "uploads": uploads, "lastUpload": last, "unknownLocations": unknown})
+	case path == "/location":
+		curLoc.Lock()
+		out := map[string]interface{}{"id": curLoc.ID, "log": clientLog}
+		if !curLoc.T.IsZero() {
+			out["t"] = curLoc.T.UnixMilli()
+		}
+		curLoc.Unlock()
+		_, err := os.Stat(clientLog)
+		out["logFound"] = err == nil
+		writeJSON(w, out)
 	case path == "/history":
 		since := time.Time{}
 		if s := r.URL.Query().Get("since"); s != "" {
@@ -459,12 +469,78 @@ func save() {
 	}
 }
 
+// ---------- huidige zone (uit het logbestand van de Albion Data Client) ----------
+// De client schrijft "Updating player location to 4206." in albiondata-client.log
+// (in de map waaruit hij gestart is). We lezen alleen dat bestand; niets aan het spel.
+var (
+	locRe  = regexp.MustCompile(`Updating player location to ([A-Za-z0-9@_-]+)`)
+	curLoc = struct {
+		sync.Mutex
+		ID, File string
+		T        time.Time
+	}{}
+	clientLog string
+)
+
+func watchClientLog() {
+	var off int64
+	var lastFile string
+	var lastSize int64
+	for range time.Tick(time.Second) {
+		f := clientLog
+		fi, err := os.Stat(f)
+		if err != nil {
+			continue
+		}
+		if f != lastFile || fi.Size() < lastSize {
+			off = 0 // nieuw of opnieuw begonnen logbestand
+		}
+		lastFile, lastSize = f, fi.Size()
+		if fi.Size() <= off {
+			continue
+		}
+		fh, err := os.Open(f)
+		if err != nil {
+			continue
+		}
+		if off == 0 && fi.Size() > 4<<20 {
+			off = fi.Size() - 4<<20
+		}
+		fh.Seek(off, io.SeekStart)
+		b, _ := io.ReadAll(io.LimitReader(fh, 8<<20))
+		fh.Close()
+		// alleen hele regels verwerken
+		end := strings.LastIndexByte(string(b), '\n')
+		if end < 0 {
+			continue
+		}
+		off += int64(end + 1)
+		for _, line := range strings.Split(string(b[:end]), "\n") {
+			if m := locRe.FindStringSubmatch(strings.TrimRight(line, "\r")); m != nil {
+				curLoc.Lock()
+				if curLoc.ID != m[1] {
+					log.Printf("Zone: %s", m[1])
+				}
+				curLoc.ID, curLoc.T, curLoc.File = m[1], time.Now(), f
+				curLoc.Unlock()
+			}
+		}
+	}
+}
+
 func main() {
 	exe, _ := os.Executable()
 	dataFile = filepath.Join(filepath.Dir(exe), "albion-helper-data.json")
-	if len(os.Args) > 1 && os.Args[1] == "-data" && len(os.Args) > 2 {
-		dataFile = os.Args[2]
+	clientLog = filepath.Join(filepath.Dir(exe), "albiondata-client.log")
+	for i := 1; i+1 < len(os.Args); i++ {
+		switch os.Args[i] {
+		case "-data":
+			dataFile = os.Args[i+1]
+		case "-clientlog":
+			clientLog = os.Args[i+1]
+		}
 	}
+	go watchClientLog()
 	load()
 	go func() {
 		for range time.Tick(20 * time.Second) {

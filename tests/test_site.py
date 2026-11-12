@@ -540,6 +540,45 @@ with sync_playwright() as p:
     check(p6.locator("#trOut svg circle").count() > 5, "kaart getekend")
     check(not err6, "geen JS-fouten bij reisroute: %s" % err6)
 
+    # ---------- route-overlay ----------
+    LOC = {"id": "", "t": 0}
+    def loc_route(route):
+        url = route.request.url
+        body = {"id": LOC["id"], "t": LOC["t"], "logFound": True} if "/location" in url else {"ok": True}
+        route.fulfill(status=200, body=json.dumps(body), headers={"access-control-allow-origin": "*", "content-type": "application/json"})
+    p6.route(re.compile(r"127\.0\.0\.1:47800/"), loc_route)
+    p6.click("#trQuick button[data-f='from'][data-z='3003']"); p6.click("#trQuick button[data-f='to'][data-z='3004']")
+    p6.click("#trReset") if not p6.is_disabled("#trReset") else None
+    path = p6.evaluate("routePath()")
+    check(p6.evaluate("locToZone('3008')") == "3004" and p6.evaluate("locToZone('3005')") == "3003", "marktplaats telt als de stad zelf")
+    check(p6.evaluate("locToZone('1234-Auction2')") is None and p6.evaluate("locToZone('@ISLAND@x')") is None, "onbekende locatie geeft niets")
+    with p6.expect_popup() as pop:
+        p6.click("#trOverlay")
+    ov = pop.value; ov.wait_for_timeout(300)
+    txt = ov.inner_text("body")
+    print("overlay:", txt.replace("\n", " | "))
+    check("Volgende zone" in txt and p6.evaluate("zoneLabel(routePath()[1])") in txt, "overlay toont de eerste volgende zone")
+    LOC.update(id=path[2], t=1)
+    p6.evaluate("ovTick()"); p6.wait_for_timeout(400)
+    check(p6.evaluate("routeIdx(routePath())") == 2, "zone herkend: overlay springt naar stap 3")
+    txt = ov.inner_text("body")
+    check(p6.evaluate("zoneLabel(routePath()[3])") in txt and "Automatisch" in txt, "overlay toont de zone daarna, automatisch: " + txt.replace("\n", " | "))
+    check("2 van " in p6.inner_text("#trOut .tr-steps"), "stappen in de tab mee afgevinkt")
+    ov.click("text=▶ Ik ben er"); p6.wait_for_timeout(200)
+    check(p6.evaluate("routeIdx(routePath())") == 3, "handmatig ▶ gaat een stap verder")
+    off = p6.evaluate("Object.keys(WORLD).find(k => !routePath().includes(k) && WORLD[k].c === 'y')")
+    LOC.update(id=off, t=2)
+    p6.evaluate("ovTick()"); p6.wait_for_timeout(400)
+    check(p6.evaluate("TRAVEL.from") == off and p6.evaluate("TRAVEL.to") == "3004", "van de route af: nieuwe route vanaf de huidige zone")
+    check("Nieuwe route" in ov.inner_text("body"), "overlay meldt de nieuwe route")
+    LOC.update(id="3008", t=3)
+    p6.evaluate("ovTick()"); p6.wait_for_timeout(400)
+    check("Aangekomen" in ov.inner_text("body"), "in de markt van Martlock = aangekomen")
+    ov.close()
+    p6.click("#trHere"); p6.wait_for_timeout(300)
+    check(p6.evaluate("TRAVEL.from") == "3004" and "Martlock" in p6.input_value("#trFrom"), "knop ‘Mijn huidige zone als Van’")
+    check(not err6, "geen JS-fouten bij overlay: %s" % err6)
+
     # ---------- vaste batches ----------
     p6.click("#tabMandje")
     p6.locator("#cartRoot input.qty").first.fill("5")

@@ -493,6 +493,12 @@ td.pos{color:var(--good);font-weight:600} td.neg{color:var(--bad);font-weight:60
       <label class="check" style="align-self:end;margin-bottom:12px"><input type="checkbox" id="trNoBlack"><span>Geen zwarte zones (outlands)</span></label>
       <button type="button" class="btn" id="trReset" style="align-self:end;margin-bottom:9px">Vinkjes wissen</button>
     </div>
+    <div class="btns" style="margin:4px 0 10px">
+      <button type="button" class="btn primary" id="trOverlay">📍 Overlay openen (zwevend venster boven de game)</button>
+      <button type="button" class="btn" id="trHere">Mijn huidige zone als Van</button>
+      <span class="est" id="trLoc"></span>
+    </div>
+    <p class="est">De overlay toont steeds alleen de volgende zone en de richting, en blijft boven Albion liggen. Zet Albion daarvoor op <b>venster zonder rand</b> (borderless), niet op volledig scherm. Werkt het best in Chrome of Edge. Draait het hulpprogramma (Eigen data), dan ziet hij zelf in welke zone je bent: hij gaat automatisch een stap verder en rekent opnieuw als je van de route afwijkt. Zonder hulpprogramma klik je zelf op ▶ bij elke zone.</p>
     <div id="trQuick">
       <div class="filters"><span>Van</span><button type="button" class="chip" data-f="from" data-z="3003">Caerleon</button><button type="button" class="chip" data-f="from" data-z="2000">Bridgewatch</button><button type="button" class="chip" data-f="from" data-z="4000">Fort Sterling</button><button type="button" class="chip" data-f="from" data-z="1000">Lymhurst</button><button type="button" class="chip" data-f="from" data-z="3004">Martlock</button><button type="button" class="chip" data-f="from" data-z="0000">Thetford</button></div>
       <div class="filters" style="margin-top:6px"><span>Naar</span><button type="button" class="chip" data-f="to" data-z="3003">Caerleon</button><button type="button" class="chip" data-f="to" data-z="2000">Bridgewatch</button><button type="button" class="chip" data-f="to" data-z="4000">Fort Sterling</button><button type="button" class="chip" data-f="to" data-z="1000">Lymhurst</button><button type="button" class="chip" data-f="to" data-z="3004">Martlock</button><button type="button" class="chip" data-f="to" data-z="0000">Thetford</button></div>
@@ -2412,6 +2418,7 @@ function initSite(){
   initInsight();
   initManual();
   initTree();
+  initOverlay();
   showView(viewFromHash());
 }
 
@@ -3476,8 +3483,8 @@ function renderTravel(){
   const out = $("trOut"); out.textContent = "";
   const msg = $("trMsg");
   const from = TRAVEL.from, to = TRAVEL.to;
-  if(!WORLD[from] || !WORLD[to]){ msg.textContent = "Kies een zone bij Van en Naar."; return; }
-  if(from === to){ msg.textContent = "Van en Naar zijn dezelfde zone."; return; }
+  if(!WORLD[from] || !WORLD[to]){ msg.textContent = "Kies een zone bij Van en Naar."; ovRender(); return; }
+  if(from === to){ msg.textContent = "Van en Naar zijn dezelfde zone."; ovRender(); return; }
   let path = findRoute(from, to, TRAVEL.mode, TRAVEL.noBlack), relaxed = false;
   if(!path && TRAVEL.noBlack){ path = findRoute(from, to, TRAVEL.mode, false); relaxed = !!path; }
   if(!path){ msg.textContent = "Geen route gevonden in de vaste kaart (misschien alleen via de Roads of Avalon)."; return; }
@@ -3521,6 +3528,7 @@ function renderTravel(){
   out.append(list, mapCard);
   drawRouteMap(mb, path);
   const reset = $("trReset"); reset.disabled = !done;
+  ovRender();
 }
 function initTravel(){
   travelLoad();
@@ -3551,6 +3559,154 @@ function initTravel(){
       TRAVEL[f] = id; $(f === "from" ? "trFrom" : "trTo").value = zoneLabel(id); travelSave(); renderTravel();
     });
   }
+}
+
+/* =================================================================
+   Route-overlay: zwevend venster met alleen de volgende zone
+   ================================================================= */
+const OV = {win:null, timer:null, loc:null, locT:0, helper:null, note:""};
+function routePath(){
+  const from = TRAVEL.from, to = TRAVEL.to;
+  if(!WORLD[from] || !WORLD[to] || from === to) return null;
+  return findRoute(from, to, TRAVEL.mode, TRAVEL.noBlack) || (TRAVEL.noBlack ? findRoute(from, to, TRAVEL.mode, false) : null);
+}
+function routeKey(){ return TRAVEL.from + ">" + TRAVEL.to + ">" + TRAVEL.mode; }
+// eerste stap die nog niet is afgevinkt = de zone waar je nu bent
+function routeIdx(path){
+  const c = TRAVEL.checks[routeKey()] || {};
+  let i = 0; while(i < path.length - 1 && c[i]) i++;
+  return i;
+}
+function setRouteIdx(path, idx){
+  const c = {}; for(let i = 0; i < Math.min(idx, path.length - 1); i++) c[i] = 1;
+  TRAVEL.checks[routeKey()] = c; travelSave();
+}
+// locatie-ID van de Data Client -> zone uit de kaart (marktplaatsen tellen als hun stad)
+function locToZone(id){
+  if(!id) return null;
+  let s = String(id);
+  if(/-Auction2$/.test(s)) s = s.split("-")[0];
+  const z = WORLD[s];
+  if(!z) return null;
+  if(/ (Market|Portal)$/.test(z.n)){
+    const base = ZNAME.get(z.n.replace(/ (Market|Portal)$/, "").toLowerCase());
+    if(base) return base;
+  }
+  return s;
+}
+async function fetchLocation(){
+  try{
+    const r = await fetch(LOCAL_URL + "/location", {cache:"no-store"});
+    if(!r.ok){ OV.helper = "old"; return null; }
+    const j = await r.json();
+    OV.helper = j.logFound ? "ok" : "nolog";
+    return j;
+  }catch(e){ OV.helper = "off"; return null; }
+}
+function onLocation(j){
+  if(!j || !j.id || j.t === OV.locT) return;
+  OV.locT = j.t;
+  const z = locToZone(j.id);
+  OV.loc = z;
+  $("trLoc").textContent = z ? "Je bent in " + zoneLabel(z) + "." : "Locatie " + j.id + " (eiland, dungeon of onbekend).";
+  if(!z) return;
+  const path = routePath(); if(!path) return;
+  const at = path.indexOf(z);
+  if(at >= 0){ setRouteIdx(path, at); OV.note = ""; }
+  else if(z !== TRAVEL.to){
+    // van de route af: nieuwe route vanaf hier naar dezelfde bestemming
+    TRAVEL.from = z; $("trFrom").value = zoneLabel(z);
+    setRouteIdx([z], 0); travelSave();
+    OV.note = "Nieuwe route vanaf " + zoneLabel(z) + ".";
+  }
+  renderTravel();
+}
+function ovStatus(){
+  if(OV.helper === "ok") return "Automatisch: volgt je zone via het hulpprogramma.";
+  if(OV.helper === "nolog") return "Hulpprogramma gevonden, maar geen zone-log. Start de client via het startbestand (versie 1.2). Klik nu zelf ▶.";
+  if(OV.helper === "old") return "Oud hulpprogramma: download de nieuwe versie voor automatisch volgen. Klik nu zelf ▶.";
+  return "Handmatig: klik ▶ als je in de volgende zone bent.";
+}
+const OV_CSS = `body{margin:0;font:14px/1.35 system-ui,Segoe UI,sans-serif;background:#0e1117;color:#e7eaf0;user-select:none}
+.w{padding:10px 12px}.top{display:flex;justify-content:space-between;color:#8c96a9;font-size:12px}
+.lbl{color:#8c96a9;font-size:12px;margin-top:6px}.next{font-size:24px;font-weight:800;line-height:1.15;display:flex;align-items:center;gap:8px}
+.dot{width:14px;height:14px;border-radius:50%;flex:none}.dir{font-size:18px;color:#e2b24d;font-weight:700}
+.warn{color:#e5594f;font-weight:700;font-size:12px}.cur{font-size:12px;color:#8c96a9;margin-top:4px}
+.nav{display:flex;gap:6px;margin-top:8px}.nav button{flex:1;font:inherit;font-size:16px;padding:6px;border-radius:8px;border:1px solid #283041;background:#1c2330;color:#e7eaf0;cursor:pointer}
+.nav button.p{background:#e2b24d;color:#1a1405;border-color:#e2b24d;font-weight:800}.st{font-size:11px;color:#8c96a9;margin-top:6px}.note{font-size:12px;color:#4cc38a}`;
+const ARROW = {noord:"↑", noordoost:"↗", oost:"→", zuidoost:"↘", zuid:"↓", zuidwest:"↙", west:"←", noordwest:"↖"};
+function ovRender(){
+  const w = OV.win; if(!w || w.closed) return;
+  const d = w.document, root = d.getElementById("ov"); if(!root) return;
+  root.textContent = "";
+  const mk = (tag, cls, txt) => { const e = d.createElement(tag); if(cls) e.className = cls; if(txt != null) e.textContent = txt; return e; };
+  const path = routePath();
+  if(!path){ root.appendChild(mk("div", "next", "Geen route")); root.appendChild(mk("div", "st", "Kies Van en Naar in de tab Reisroute.")); return; }
+  const idx = routeIdx(path), last = idx >= path.length - 1;
+  const top = mk("div", "top"); top.append(mk("span", null, "→ " + zoneLabel(TRAVEL.to)), mk("span", null, last ? "aangekomen" : "stap " + (idx + 1) + " van " + (path.length - 1)));
+  root.appendChild(top);
+  if(last){
+    root.appendChild(mk("div", "next", "✔ Aangekomen in " + zoneLabel(TRAVEL.to)));
+  }else{
+    const cur = path[idx], next = path[idx + 1], nz = WORLD[next], dir = compass(cur, next);
+    root.appendChild(mk("div", "lbl", "Volgende zone"));
+    const n = mk("div", "next"); const dot = mk("span", "dot"); dot.style.background = ZFILL[nz.c]; n.append(dot, mk("span", null, zoneLabel(next)));
+    root.appendChild(n);
+    if(dir) root.appendChild(mk("div", "dir", (ARROW[dir] || "") + " uitgang " + dir));
+    if(nz.c === "r") root.appendChild(mk("div", "warn", "Rode zone: je kunt alles verliezen"));
+    if(nz.c === "k") root.appendChild(mk("div", "warn", "Zwarte zone: volledig PvP"));
+    root.appendChild(mk("div", "cur", "Je bent in " + zoneLabel(cur) + (idx + 2 < path.length ? " · daarna " + zoneLabel(path[idx + 2]) : "")));
+  }
+  if(OV.note) root.appendChild(mk("div", "note", OV.note));
+  const nav = mk("div", "nav");
+  const back = mk("button", null, "◀"); back.title = "Stap terug"; back.disabled = idx === 0;
+  const fwd = mk("button", "p", "▶ Ik ben er"); fwd.title = "Ik ben in de volgende zone"; fwd.disabled = last;
+  back.onclick = () => { setRouteIdx(path, idx - 1); OV.note = ""; renderTravel(); };
+  fwd.onclick = () => { setRouteIdx(path, idx + 1); OV.note = ""; renderTravel(); };
+  nav.append(back, fwd); root.appendChild(nav);
+  root.appendChild(mk("div", "st", ovStatus()));
+}
+async function ovTick(){
+  const j = await fetchLocation();
+  if(j) onLocation(j);
+  ovRender();
+}
+async function openOverlay(){
+  if(OV.win && !OV.win.closed){ try{ OV.win.focus(); }catch(e){} return; }
+  let w = null;
+  try{
+    if(window.documentPictureInPicture) w = await documentPictureInPicture.requestWindow({width:330, height:215});
+  }catch(e){ w = null; }
+  if(!w){
+    w = window.open("", "albionRouteOverlay", "width=340,height=250");
+    if(!w){ $("trLoc").textContent = "Je browser blokkeerde het venster. Sta pop-ups toe voor deze site."; return; }
+    $("trLoc").textContent = "Je browser kan geen zwevend venster maken; dit is een gewoon venster. Gebruik Chrome of Edge voor altijd-bovenop.";
+  }
+  const d = w.document;
+  d.title = "Route";
+  d.head.textContent = ""; d.body.textContent = "";
+  const st = d.createElement("style"); st.textContent = OV_CSS; d.head.appendChild(st);
+  const root = d.createElement("div"); root.className = "w"; root.id = "ov"; d.body.appendChild(root);
+  OV.win = w;
+  w.addEventListener("pagehide", () => { OV.win = null; clearInterval(OV.timer); OV.timer = null; });
+  clearInterval(OV.timer);
+  OV.timer = setInterval(() => { if(!OV.win || OV.win.closed){ clearInterval(OV.timer); OV.timer = null; OV.win = null; return; } ovTick(); }, 2000);
+  ovTick();
+}
+function initOverlay(){
+  $("trOverlay").addEventListener("click", openOverlay);
+  $("trHere").addEventListener("click", async () => {
+    const j = await fetchLocation();
+    const z = j && locToZone(j.id);
+    if(!z){
+      $("trLoc").textContent = OV.helper === "off" ? "Hulpprogramma niet gevonden. Start het via het startbestand." :
+        OV.helper === "old" ? "Download het nieuwe hulpprogramma (1.2) voor je huidige zone." :
+        "Nog geen zone bekend: ga één keer een zone in of uit terwijl de client draait.";
+      return;
+    }
+    TRAVEL.from = z; $("trFrom").value = zoneLabel(z); travelSave(); renderTravel();
+    $("trLoc").textContent = "Je bent in " + zoneLabel(z) + ".";
+  });
 }
 
 

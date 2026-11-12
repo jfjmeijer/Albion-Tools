@@ -23,3 +23,8 @@ Gebruik
 
 De data wordt bewaard in albion-helper-data.json in deze map (maximaal 24 uur oud).
 De broncode staat in de map helper op GitHub.
+
+Route-overlay (versie 1.2)
+- Het hulpprogramma leest ook je huidige zone uit albiondata-client.log (dat bestand maakt de client in deze map
+  als je hem via start-albion-prive.command start). Op de site, tab Reisroute > "Overlay openen", volgt de overlay
+  dan vanzelf je route. Werkt dat niet, update dan de Albion Data Client naar de nieuwste versie.
