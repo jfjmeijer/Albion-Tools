@@ -30,3 +30,9 @@ Route-overlay (versie 1.2)
 - Het hulpprogramma leest ook je huidige zone uit albiondata-client.log (dat bestand maakt de client in deze map
   als je hem via start-albion-prive.command start). Op de site, tab Reisroute > "Overlay openen", volgt de overlay
   dan vanzelf je route. Werkt dat niet, update dan de Albion Data Client naar de nieuwste versie.
+
+Met één klik starten (eenmalig instellen)
+- Open Terminal, typ: bash  (met spatie), sleep start-albion-prive.command erin, typ erachter: --maak-app
+  en druk op Enter. Er komt een app "Albion Prive" op je bureaublad.
+- Daarna: dubbelklik op Albion Prive. Hij vraagt (na een herstart van je Mac) één keer je wachtwoord, start
+  het hulpprogramma en de client, en opent de site. Verplaats deze map daarna niet meer.

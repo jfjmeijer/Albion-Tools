@@ -2,6 +2,36 @@
 # Albion Tools - prive data (Mac)
 cd "$(dirname "$0")" || exit 1
 DIR="$(pwd)"
+
+# Eenmalig: maak een app op je bureaublad die alles met één dubbelklik start
+if [ "$1" = "--maak-app" ]; then
+  APP="$HOME/Desktop/Albion Prive.app"
+  AS="$(mktemp -t albionapp).applescript"
+  cat > "$AS" <<APPLESCRIPT
+try
+  do shell script "test -r /dev/bpf63 && test -w /dev/bpf63"
+on error
+  do shell script "for i in \$(seq 0 63); do : < /dev/bpf\$i; done 2>/dev/null; chgrp admin /dev/bpf*; chmod g+rw /dev/bpf*" with prompt "Albion Prive mag het netwerkverkeer van Albion lezen (tot je Mac herstart)." with administrator privileges
+end try
+tell application "Terminal"
+  activate
+  do script "bash " & quoted form of "$DIR/start-albion-prive.command"
+end tell
+delay 3
+do shell script "open -a 'Google Chrome' 'https://jfjmeijer.github.io/Albion-Tools/' || open 'https://jfjmeijer.github.io/Albion-Tools/'"
+APPLESCRIPT
+  rm -rf "$APP"
+  if osacompile -o "$APP" "$AS"; then
+    echo ""
+    echo "Klaar: 'Albion Prive' staat op je bureaublad. Dubbelklik erop om alles te starten."
+    echo "Tip: sleep hem naar je Dock. Verplaats deze map niet meer (de app verwijst ernaar)."
+    echo "De eerste keer vraagt macOS of de app Terminal mag bedienen: klik OK."
+  else
+    echo "Kon de app niet maken."
+  fi
+  rm -f "$AS"
+  exit 0
+fi
 # macOS zet downloads in "quarantaine"; haal die alleen van deze map af
 xattr -dr com.apple.quarantine "$DIR" 2>/dev/null
 
@@ -41,8 +71,9 @@ sleep 1
 # 3. Toestemming om netwerkverkeer te lezen: eerst 64 bpf-apparaten aanmaken (macOS maakt ze anders pas later,
 #    met standaardrechten), dan lezen+schrijven voor beheerders, zoals Wireshark doet. Geldt tot de volgende herstart.
 echo ""
-echo "Typ je Mac-wachtwoord (je ziet niets als je typt). Dat is nodig zodat de client het verkeer van Albion mag lezen."
-if ! sudo sh -c 'for i in $(seq 0 63); do : < /dev/bpf$i; done 2>/dev/null; chgrp admin /dev/bpf* && chmod g+rw /dev/bpf*'; then
+if [ -r /dev/bpf63 ] && [ -w /dev/bpf63 ]; then
+  echo "Toestemming voor netwerkverkeer staat al goed."
+elif echo "Typ je Mac-wachtwoord (je ziet niets als je typt), zodat de client het verkeer van Albion mag lezen." && ! sudo sh -c 'for i in $(seq 0 63); do : < /dev/bpf$i; done 2>/dev/null; chgrp admin /dev/bpf* && chmod g+rw /dev/bpf*'; then
   echo "Geen toestemming gekregen. Probeer het opnieuw."; read -r -p "Druk op Enter om te sluiten."; exit 1
 fi
 
