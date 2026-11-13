@@ -12,8 +12,10 @@ Gebruik
    https://www.albion-online-data.com/client en pak hem uit, bijvoorbeeld in Downloads.
    Start de client NIET zelf met run.command, want dan uploadt hij openbaar.
 2. Pak albion-tools-helper-mac.zip uit, bijvoorbeeld in Documenten.
-3. De eerste keer: rechtermuisklik (of Ctrl+klik) op start-albion-prive.command > Open > Open.
-   macOS waarschuwt omdat het niet ondertekend is. Daarna kun je gewoon dubbelklikken.
+3. Starten (macOS blokkeert dubbelklikken omdat het niet ondertekend is):
+   open Terminal (Cmd+spatie, typ Terminal), typ "bash " (met spatie), sleep start-albion-prive.command
+   in het venster en druk op Enter. Het script haalt zelf de blokkade van het hulpprogramma en de client af.
+   Of: dubbelklik, klik OK, ga naar Systeeminstellingen > Privacy en beveiliging > "Open toch".
    Vindt hij de client niet, dan vraagt hij je het bestand albiondata-client in het venster te slepen
    (dat onthoudt hij).
 4. Typ je Mac-wachtwoord als hij erom vraagt (nodig om het netwerkverkeer van Albion te kunnen lezen).
