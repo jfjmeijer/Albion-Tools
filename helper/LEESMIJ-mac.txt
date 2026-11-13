@@ -18,7 +18,7 @@ Gebruik
    Of: dubbelklik, klik OK, ga naar Systeeminstellingen > Privacy en beveiliging > "Open toch".
    Vindt hij de client niet, dan vraagt hij je het bestand albiondata-client in het venster te slepen
    (dat onthoudt hij).
-4. Typ je Mac-wachtwoord als hij erom vraagt (nodig om het netwerkverkeer van Albion te kunnen lezen).
+4. Typ je Mac-wachtwoord als hij erom vraagt (geeft de client tot de volgende herstart toestemming om het netwerkverkeer van Albion te lezen). Start de client nooit zelf, alleen via dit script.
 5. Open de site in Chrome: https://jfjmeijer.github.io/Albion-Tools/ en vink bij "Eigen data (prive)" het vakje aan.
    Krijg je een melding over je lokale netwerk, klik dan Toestaan. Safari blokkeert de verbinding mogelijk.
 6. Open in Albion de markt of de Black Market. Binnen ±15 seconden zie je de prijzen op de site.
