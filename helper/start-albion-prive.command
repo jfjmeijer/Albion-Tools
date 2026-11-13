@@ -38,10 +38,10 @@ HPID=$!
 trap 'kill $HPID 2>/dev/null' EXIT
 sleep 1
 
-# 3. Toestemming om netwerkverkeer te lezen (/dev/bpf*), tot de volgende herstart van je Mac
+# 3. Toestemming om netwerkverkeer te lezen (/dev/bpf*, lezen+schrijven voor beheerders zoals Wireshark doet), tot de volgende herstart
 echo ""
 echo "Typ je Mac-wachtwoord (je ziet niets als je typt). Dat is nodig zodat de client het verkeer van Albion mag lezen."
-if ! sudo chmod o+r /dev/bpf*; then
+if ! { sudo chgrp admin /dev/bpf* && sudo chmod g+rw /dev/bpf*; }; then
   echo "Geen toestemming gekregen. Probeer het opnieuw."; read -r -p "Druk op Enter om te sluiten."; exit 1
 fi
 
