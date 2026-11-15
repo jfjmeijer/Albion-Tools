@@ -5,6 +5,15 @@ DIR="$(pwd)"
 
 # Eenmalig: maak een app op je bureaublad die alles met één dubbelklik start
 if [ "$1" = "--maak-app" ]; then
+  # alles naar een vaste plek kopieren, zodat opruimen van Downloads de app niet breekt
+  HOME_DIR="$HOME/Library/Application Support/Albion Prive"
+  mkdir -p "$HOME_DIR"
+  for f in albion-helper-mac-arm64 albion-helper-mac-intel start-albion-prive.command LEESMIJ-mac.txt client-pad.txt albion-helper-data.json; do
+    [ -f "$DIR/$f" ] && [ "$DIR" != "$HOME_DIR" ] && cp -f "$DIR/$f" "$HOME_DIR/"
+  done
+  xattr -dr com.apple.quarantine "$HOME_DIR" 2>/dev/null
+  chmod +x "$HOME_DIR"/albion-helper-mac-* 2>/dev/null
+  DIR="$HOME_DIR"
   APP="$HOME/Desktop/Albion Prive.app"
   AS="$(mktemp -t albionapp).applescript"
   cat > "$AS" <<APPLESCRIPT
@@ -24,7 +33,8 @@ APPLESCRIPT
   if osacompile -o "$APP" "$AS"; then
     echo ""
     echo "Klaar: 'Albion Prive' staat op je bureaublad. Dubbelklik erop om alles te starten."
-    echo "Tip: sleep hem naar je Dock. Verplaats deze map niet meer (de app verwijst ernaar)."
+    echo "Tip: sleep hem naar je Dock. De bestanden staan nu vast in: $DIR"
+    echo "Deze uitgepakte map mag je daarna weggooien."
     echo "De eerste keer vraagt macOS of de app Terminal mag bedienen: klik OK."
   else
     echo "Kon de app niet maken."

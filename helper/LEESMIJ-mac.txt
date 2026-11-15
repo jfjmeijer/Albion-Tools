@@ -35,4 +35,5 @@ Met één klik starten (eenmalig instellen)
 - Open Terminal, typ: bash  (met spatie), sleep start-albion-prive.command erin, typ erachter: --maak-app
   en druk op Enter. Er komt een app "Albion Prive" op je bureaublad.
 - Daarna: dubbelklik op Albion Prive. Hij vraagt (na een herstart van je Mac) één keer je wachtwoord, start
-  het hulpprogramma en de client, en opent de site. Verplaats deze map daarna niet meer.
+  het hulpprogramma en de client, en opent de site. De app bewaart zijn eigen kopie in
+  ~/Library/Application Support/Albion Prive; de uitgepakte map mag je daarna weggooien.
