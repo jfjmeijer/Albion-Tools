@@ -714,6 +714,11 @@ with sync_playwright() as p:
     check(p8.input_value("#maxAgeBm") == "0.25", "BM-leeftijd blijft bewaard")
     p8.select_option("#maxAgeBm", "0")
 
+    # ---------- stad -> stad: nooit dezelfde stad ----------
+    same = p8.evaluate("""() => withSettings({mode:'city', buyCities:new Set(['Lymhurst','Martlock']), sellCities:new Set(['Lymhurst','Martlock']),
+        minProfit:-Infinity, minRoi:-Infinity, maxRoi:0, showAll:true, useAvg:true, maxAge:1e6}, () => computeFlips().rows.filter(r => r.from === r.to).length)""")
+    check(same == 0, "stad → stad geeft geen rijen met dezelfde koop- en verkoopstad (%s)" % same)
+
     # ---------- spec-tree ----------
     p8.click("#tabMarkt"); p8.click("#modeCraft")
     check(p8.locator("#tree option[value=froststaff]").count() == 1, "Frost Staff staat in de spec-tree-lijst")
