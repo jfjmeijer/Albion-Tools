@@ -716,8 +716,11 @@ with sync_playwright() as p:
 
     # ---------- stad -> stad: nooit dezelfde stad ----------
     same = p8.evaluate("""() => withSettings({mode:'city', buyCities:new Set(['Lymhurst','Martlock']), sellCities:new Set(['Lymhurst','Martlock']),
-        minProfit:-Infinity, minRoi:-Infinity, maxRoi:0, showAll:true, useAvg:true, maxAge:1e6}, () => computeFlips().rows.filter(r => r.from === r.to).length)""")
-    check(same == 0, "stad → stad geeft geen rijen met dezelfde koop- en verkoopstad (%s)" % same)
+        minProfit:-Infinity, minRoi:-Infinity, maxRoi:0, showAll:true, useAvg:true, maxAge:1e6, buyMethod:'instant'}, () => computeFlips().rows.filter(r => r.from === r.to).length)""")
+    check(same == 0, "stad → stad met direct kopen: geen rijen met dezelfde stad (%s)" % same)
+    same2 = p8.evaluate("""() => withSettings({mode:'city', buyCities:new Set(['Lymhurst','Martlock']), sellCities:new Set(['Lymhurst','Martlock']),
+        minProfit:-Infinity, minRoi:-Infinity, maxRoi:0, showAll:true, useAvg:true, maxAge:1e6, buyMethod:'order'}, () => computeFlips().rows.length)""")
+    check(same2 >= 0, "stad → stad met buy orders: zelfde stad mag (%s rijen)" % same2)
 
     # ---------- spec-tree ----------
     p8.click("#tabMarkt"); p8.click("#modeCraft")

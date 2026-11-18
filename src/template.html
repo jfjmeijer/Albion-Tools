@@ -1283,7 +1283,7 @@ function computeFlips(){
       if(S.maxBuy > 0 && bp > S.maxBuy) continue;
       for(const b of sellLocs){
         if(b === BM && (p.it.c === "r" || p.it.c === "m")) continue;   // de Black Market koopt geen grondstoffen
-        if(b === a && !orders) continue;   // zelfde stad: alleen zinvol bij buy orders (eigen modus)
+        if(b === a && !orders && S.buyMethod === "instant") continue;   // zelfde stad: alleen zinvol als je via een buy order koopt
         const B = o[b]; if(!B) continue;
         const instantSell = orders ? b === BM : b === BM ? S.bmSell !== "order" : S.sellMethod === "instant";
         const sellFee = tax + (!instantSell ? SETUP : 0);
